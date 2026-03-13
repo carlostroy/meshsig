@@ -1,8 +1,4 @@
 <p align="center">
-  <img src="assets/logo.svg" width="280" alt="MeshSig Logo">
-</p>
-
-<p align="center">
   <img src="https://img.shields.io/badge/Ed25519-Cryptographic_Identity-00d4ff?style=for-the-badge" />
   <img src="https://img.shields.io/badge/W3C-DID_Standard-8b5cf6?style=for-the-badge" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" />
