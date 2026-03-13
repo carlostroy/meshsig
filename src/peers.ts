@@ -22,6 +22,7 @@ export class PeerNetwork extends EventEmitter {
   private registry: Registry;
   private serverName: string;
   private reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private syncInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(registry: Registry, serverName: string) {
     super();
@@ -30,10 +31,13 @@ export class PeerNetwork extends EventEmitter {
 
     // When local agents change, announce to peers
     this.registry.on('mesh-event', (event: any) => {
-      if (event.type === 'agent:register') {
+      if (event.type === 'agent:register' && event.data?.origin !== 'remote') {
         this.announceAll();
       }
     });
+
+    // Periodic re-announce every 15 seconds to keep agents synced
+    this.syncInterval = setInterval(() => this.announceAll(), 15_000);
   }
 
   // -- Outgoing connections --------------------------------------------------
@@ -111,13 +115,15 @@ export class PeerNetwork extends EventEmitter {
   // -- Protocol --------------------------------------------------------------
 
   private sendAnnounce(ws: WebSocket): void {
-    const agents = this.registry.listAgents('active');
+    // Only announce LOCAL agents — don't re-broadcast remote ones
+    const agents = this.registry.listAgents('active').filter(a => a.origin === 'local');
     ws.send(JSON.stringify({
       type: 'peer:announce',
       serverName: this.serverName,
       agents: agents.map(a => ({
-        did: a.did, name: a.displayName,
+        did: a.did, name: a.displayName, displayName: a.displayName,
         capabilities: a.capabilities, publicKey: a.publicKey,
+        trustScore: a.trustScore,
       })),
     }));
   }
@@ -136,17 +142,33 @@ export class PeerNetwork extends EventEmitter {
         peer.name = msg.serverName;
         peer.agents = (msg.agents || []).map((a: any) => a.did);
 
-        // Import remote agents into local registry
+        // Import remote agents into local registry — this is what makes them
+        // appear on the dashboard. Every agent from every connected server
+        // becomes visible in the unified network view.
+        let imported = 0;
         for (const agent of msg.agents || []) {
-          if (!this.registry.getAgent(agent.did)) {
-            // We don't have this agent locally — we could register it as remote
-            // For now, just track it in the peer info
+          const existing = this.registry.getAgent(agent.did);
+          if (!existing) {
+            this.registry.importRemoteAgent({
+              did: agent.did,
+              name: agent.name || agent.displayName,
+              publicKey: agent.publicKey,
+              capabilities: agent.capabilities || [],
+              originServer: msg.serverName || peer.url,
+            });
+            imported++;
+          } else if (existing.origin === 'remote') {
+            // Touch to keep alive
+            this.registry.touchAgent(agent.did);
           }
         }
 
         this.emit('peer-event', {
           type: 'peer:connected',
-          data: { url: peer.url, agents: peer.agents.length, name: msg.serverName },
+          data: {
+            url: peer.url, agents: peer.agents.length,
+            name: msg.serverName, imported,
+          },
         });
         break;
       }
@@ -235,6 +257,7 @@ export class PeerNetwork extends EventEmitter {
   // -- Cleanup ---------------------------------------------------------------
 
   close(): void {
+    if (this.syncInterval) clearInterval(this.syncInterval);
     for (const [, timer] of this.reconnectTimers) clearTimeout(timer);
     for (const [, peer] of this.peers) {
       try { peer.ws.close(); } catch {}

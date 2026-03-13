@@ -21,6 +21,8 @@ export interface AgentRecord {
   interactionsTotal: number;
   interactionsSuccess: number;
   online: boolean;
+  origin: string;
+  originServer: string;
   metadata: Record<string, unknown>;
   createdAt: string;
 }
@@ -50,6 +52,8 @@ const SCHEMA = `
     trust_score REAL NOT NULL DEFAULT 0.0,
     interactions_total INTEGER NOT NULL DEFAULT 0,
     interactions_success INTEGER NOT NULL DEFAULT 0,
+    origin TEXT NOT NULL DEFAULT 'local',
+    origin_server TEXT NOT NULL DEFAULT '',
     metadata TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS connections (
@@ -97,6 +101,15 @@ export class Registry extends EventEmitter {
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
     this.db.exec(SCHEMA);
+
+    // Migrate existing databases — add new columns if missing
+    try { this.db.exec('ALTER TABLE agents ADD COLUMN origin TEXT NOT NULL DEFAULT \'local\''); } catch {}
+    try { this.db.exec('ALTER TABLE agents ADD COLUMN origin_server TEXT NOT NULL DEFAULT \'\''); } catch {}
+    try { this.db.exec('ALTER TABLE connections ADD COLUMN trust_score REAL NOT NULL DEFAULT 0.0'); } catch {}
+    try { this.db.exec('ALTER TABLE connections ADD COLUMN messages_exchanged INTEGER NOT NULL DEFAULT 0'); } catch {}
+    try { this.db.exec('ALTER TABLE agents ADD COLUMN trust_score REAL NOT NULL DEFAULT 0.0'); } catch {}
+    try { this.db.exec('ALTER TABLE agents ADD COLUMN interactions_total INTEGER NOT NULL DEFAULT 0'); } catch {}
+    try { this.db.exec('ALTER TABLE agents ADD COLUMN interactions_success INTEGER NOT NULL DEFAULT 0'); } catch {}
   }
 
   private emit_event(type: string, data: any): void {
@@ -114,8 +127,8 @@ export class Registry extends EventEmitter {
     const id = randomUUID();
 
     this.db.prepare(`
-      INSERT INTO agents (id, did, public_key, display_name, capabilities, status, last_seen_at, metadata, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
+      INSERT INTO agents (id, did, public_key, display_name, capabilities, status, last_seen_at, origin, origin_server, metadata, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'active', ?, 'local', '', ?, ?, ?)
     `).run(id, identity.did, identity.publicKey, name, JSON.stringify(capabilities), now, JSON.stringify(meta || {}), now, now);
 
     const record = this._rowToAgent(this.db.prepare('SELECT * FROM agents WHERE did = ?').get(identity.did));
@@ -123,9 +136,48 @@ export class Registry extends EventEmitter {
     this.emit_event('agent:register', {
       did: identity.did, name, capabilities,
       publicKey: identity.publicKey,
+      origin: 'local',
     });
 
     return { identity, record };
+  }
+
+  /**
+   * Import a remote agent from a peer server.
+   * No keypair generated — just stores the public identity.
+   */
+  importRemoteAgent(agent: {
+    did: string; name: string; publicKey: string;
+    capabilities: Capability[]; originServer: string;
+  }): AgentRecord | null {
+    const existing = this.getAgent(agent.did);
+    if (existing) {
+      // Update last seen and origin
+      const now = new Date().toISOString();
+      this.db.prepare(`
+        UPDATE agents SET last_seen_at = ?, origin = 'remote', origin_server = ?, updated_at = ?, status = 'active'
+        WHERE did = ?
+      `).run(now, agent.originServer, now, agent.did);
+      return this.getAgent(agent.did);
+    }
+
+    const now = new Date().toISOString();
+    const id = randomUUID();
+
+    this.db.prepare(`
+      INSERT INTO agents (id, did, public_key, display_name, capabilities, status, last_seen_at, origin, origin_server, metadata, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'active', ?, 'remote', ?, '{}', ?, ?)
+    `).run(id, agent.did, agent.publicKey, agent.name, JSON.stringify(agent.capabilities), now, agent.originServer, now, now);
+
+    const record = this._rowToAgent(this.db.prepare('SELECT * FROM agents WHERE did = ?').get(agent.did));
+
+    this.emit_event('agent:register', {
+      did: agent.did, name: agent.name, capabilities: agent.capabilities,
+      publicKey: agent.publicKey,
+      origin: 'remote', originServer: agent.originServer,
+    });
+
+    return record;
   }
 
   getAgent(did: string): AgentRecord | null {
@@ -324,6 +376,8 @@ export class Registry extends EventEmitter {
       interactionsTotal: row.interactions_total || 0,
       interactionsSuccess: row.interactions_success || 0,
       online,
+      origin: row.origin || 'local',
+      originServer: row.origin_server || '',
       metadata: JSON.parse(row.metadata), createdAt: row.created_at,
     };
   }

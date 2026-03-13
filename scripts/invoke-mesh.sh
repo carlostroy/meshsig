@@ -16,7 +16,7 @@ fi
 
 MESH_URL="${MESHSIG_URL:-http://127.0.0.1:4888}"
 GATEWAY_URL="${GATEWAY_URL:-http://127.0.0.1:3001}"
-GATEWAY_SECRET="${GATEWAY_SECRET:-a481d64a95af1a6178214c90669eeb694807755225c1c41bad9a6954abf171fd}"
+GATEWAY_SECRET="${GATEWAY_SECRET:-xrunly-secret-change-me}"
 
 # Agent identity file (created on first run by setup)
 IDENTITY_DIR="/opt/meshsig/identities"
