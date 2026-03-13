@@ -23,11 +23,6 @@
     backdrop-filter:blur(12px)}
 
   .logo{display:flex;align-items:center;gap:12px}
-  .logo-mark{width:36px;height:36px;border-radius:8px;
-    background:linear-gradient(135deg,#00d4ff,#0088ff);
-    display:flex;align-items:center;justify-content:center;
-    font:700 18px 'JetBrains Mono',monospace;color:#050a12;
-    box-shadow:0 0 20px rgba(0,212,255,0.3)}
   .logo h1{font:700 17px 'JetBrains Mono',monospace;color:#00d4ff;letter-spacing:0.05em}
   .logo .tag{font:500 10px 'JetBrains Mono',monospace;color:#3a7ca5;letter-spacing:0.1em}
 
@@ -130,7 +125,26 @@
 <!-- Top Bar -->
 <div id="topbar">
   <div class="logo">
-    <div class="logo-mark">M</div>
+    <svg width="48" height="38" viewBox="0 0 200 160" style="flex-shrink:0">
+      <defs><linearGradient id="lwg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#0088ff"/><stop offset="50%" stop-color="#00d4ff"/><stop offset="100%" stop-color="#0088ff"/></linearGradient></defs>
+      <line x1="55" y1="38" x2="30" y2="80" stroke="#00ff88" stroke-width="0.7" opacity="0.3"/>
+      <line x1="55" y1="38" x2="80" y2="80" stroke="#00ff88" stroke-width="0.7" opacity="0.3"/>
+      <line x1="100" y1="122" x2="80" y2="80" stroke="#00ff88" stroke-width="0.7" opacity="0.3"/>
+      <line x1="100" y1="122" x2="120" y2="80" stroke="#00ff88" stroke-width="0.7" opacity="0.3"/>
+      <line x1="145" y1="38" x2="120" y2="80" stroke="#00ff88" stroke-width="0.7" opacity="0.3"/>
+      <line x1="145" y1="38" x2="170" y2="80" stroke="#00ff88" stroke-width="0.7" opacity="0.3"/>
+      <path d="M30 80 Q55 30 80 80 Q105 130 120 80 Q145 30 170 80" fill="none" stroke="url(#lwg)" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="30" cy="80" r="7" fill="#0088ff"/><circle cx="30" cy="80" r="2.8" fill="#fff"/>
+      <circle cx="80" cy="80" r="8" fill="#00bbff"/><circle cx="80" cy="80" r="3" fill="#fff"/>
+      <circle cx="120" cy="80" r="8" fill="#00bbff"/><circle cx="120" cy="80" r="3" fill="#fff"/>
+      <circle cx="170" cy="80" r="7" fill="#0088ff"/><circle cx="170" cy="80" r="2.8" fill="#fff"/>
+      <circle cx="55" cy="38" r="5" fill="#00ff88"/>
+      <circle cx="100" cy="122" r="5" fill="#00ff88"/>
+      <circle cx="145" cy="38" r="5" fill="#00ff88"/>
+      <rect x="90" y="73" width="20" height="15" rx="2.5" fill="none" stroke="#00d4ff" stroke-width="1.5"/>
+      <path d="M95 73 L95 67 Q95 60 100 60 Q105 60 105 67 L105 73" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="100" cy="81" r="2" fill="#00d4ff"/>
+    </svg>
     <div>
       <h1>MESHSIG</h1>
       <div class="tag">SECURITY OPERATIONS</div>
