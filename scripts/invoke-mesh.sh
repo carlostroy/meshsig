@@ -16,11 +16,11 @@ fi
 
 MESH_URL="${MESHSIG_URL:-http://127.0.0.1:4888}"
 GATEWAY_URL="${GATEWAY_URL:-http://127.0.0.1:3001}"
-GATEWAY_SECRET="${GATEWAY_SECRET:-YOUR_API_SECRET_HERE}"
+GATEWAY_SECRET="${GATEWAY_SECRET:-a481d64a95af1a6178214c90669eeb694807755225c1c41bad9a6954abf171fd}"
 
 # Agent identity file (created on first run by setup)
 IDENTITY_DIR="/opt/meshsig/identities"
-CALLER_NAME="${OPENCLAW_AGENT_NAME:-$(basename $(dirname $(dirname $(dirname $(dirname $0)))))}"
+CALLER_NAME="${OPENCLAW_AGENT_NAME:-$(readlink -f "$SCRIPT_DIR" | sed "s|.*clients/||" | cut -d/ -f1)}"
 CALLER_IDENTITY="$IDENTITY_DIR/$CALLER_NAME.json"
 TARGET_IDENTITY="$IDENTITY_DIR/$TARGET.json"
 
