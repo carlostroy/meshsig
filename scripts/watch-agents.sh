@@ -80,9 +80,9 @@ register_agent() {
 
   if [ -n "$did" ]; then
     echo -e "  ${GREEN}+${RESET} Registered ${CYAN}$display_name${RESET} → ${DIM}$did${RESET}"
-    echo "$dir_name" >> "$STATE_FILE"
+    echo "$dir_name|$did|$display_name" >> "$STATE_FILE"
     
-    # Save identity to agent directory for invoke-mesh.sh
+    # Save identity
     local id_dir="/opt/meshsig/identities"
     mkdir -p "$id_dir"
     echo "$result" | python3 -c "
@@ -91,9 +91,80 @@ d=json.load(sys.stdin)
 with open('$id_dir/${dir_name}.json','w') as f:
     json.dump(d['identity'],f,indent=2)
 " 2>/dev/null
+
+    # Install invoke-mesh.sh if agent has invoke-team skill
+    local agent_dir="$CLIENTS_DIR/$dir_name"
+    local skill_dir="$agent_dir/.openclaw/skills/invoke-team"
+    if [ -d "$skill_dir" ]; then
+      local invoke_file="$skill_dir/invoke.sh"
+      if [ -f "$invoke_file" ] && ! grep -q "meshsig" "$invoke_file" 2>/dev/null; then
+        cp "$invoke_file" "${invoke_file}.bak"
+        cp /opt/meshsig/scripts/invoke-mesh.sh "$invoke_file"
+        chmod +x "$invoke_file"
+        echo -e "  ${GREEN}+${RESET} Installed invoke-mesh.sh on ${CYAN}$display_name${RESET}"
+      fi
+    fi
+
+    # Create connections with existing agents
+    connect_new_agent "$did" "$display_name"
   else
     echo -e "  ${RED}✗${RESET} Failed to register $display_name"
   fi
+}
+
+# Connect new agent to existing agents via handshake
+connect_new_agent() {
+  local new_did="$1"
+  local new_name="$2"
+
+  # Get all existing agents
+  local agents=$(curl -s "$MESHSIG_URL/agents" 2>/dev/null)
+  local count=$(echo "$agents" | python3 -c "import sys,json;print(len(json.load(sys.stdin).get('agents',[])))" 2>/dev/null)
+  
+  [ "$count" -lt 2 ] && return
+
+  # Find managers — connect new agent to managers, or if new agent IS a manager, connect to all
+  local is_manager=0
+  echo "$new_name" | grep -iqE "gestor|gerente|manager|coo|ceo|antony|pedro" && is_manager=1
+
+  echo "$agents" | python3 -c "
+import sys, json, subprocess
+
+data = json.load(sys.stdin)
+agents = data.get('agents', [])
+new_did = '$new_did'
+is_manager = $is_manager
+
+for a in agents:
+    if a['did'] == new_did:
+        continue
+    # Connect if new agent is manager OR existing agent is manager
+    a_caps = [c.get('type','') for c in a.get('capabilities',[])]
+    if is_manager or 'management' in a_caps or 'delegation' in a_caps:
+        print(f'{a[\"did\"]}|{a[\"displayName\"]}')
+" 2>/dev/null | while IFS='|' read -r other_did other_name; do
+    [ -z "$other_did" ] && continue
+    # Get private keys from identities
+    local new_key=$(python3 -c "
+import json,glob
+for f in glob.glob('/opt/meshsig/identities/*.json'):
+    d=json.load(open(f))
+    if d.get('did','')=='$new_did': print(d['privateKey']); break
+" 2>/dev/null)
+    local other_key=$(python3 -c "
+import json,glob
+for f in glob.glob('/opt/meshsig/identities/*.json'):
+    d=json.load(open(f))
+    if d.get('did','')=='$other_did': print(d['privateKey']); break
+" 2>/dev/null)
+
+    if [ -n "$new_key" ] && [ -n "$other_key" ]; then
+      curl -s -X POST "$MESHSIG_URL/handshake" \
+        -H 'Content-Type: application/json' \
+        -d "{\"fromDid\":\"$new_did\",\"toDid\":\"$other_did\",\"privateKeyA\":\"$new_key\",\"privateKeyB\":\"$other_key\"}" > /dev/null 2>&1
+      echo -e "  ${GREEN}⟷${RESET} ${CYAN}$new_name${RESET} ↔ ${CYAN}$other_name${RESET} — handshake verified"
+    fi
+  done
 }
 
 # Scan and sync
@@ -116,28 +187,34 @@ scan() {
     current_agents+=("$name")
 
     # Check if already registered
-    if ! grep -qx "$name" "$STATE_FILE" 2>/dev/null; then
+    if ! grep -q "^$name|" "$STATE_FILE" 2>/dev/null; then
       register_agent "$name"
       changes=$((changes + 1))
     fi
   done
 
   # Check for removed agents
-  while IFS= read -r known; do
-    [ -z "$known" ] && continue
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    local known_dir=$(echo "$line" | cut -d'|' -f1)
+    local known_did=$(echo "$line" | cut -d'|' -f2)
+    local known_name=$(echo "$line" | cut -d'|' -f3)
     local found=0
     for current in "${current_agents[@]}"; do
-      if [ "$current" = "$known" ]; then
+      if [ "$current" = "$known_dir" ]; then
         found=1
         break
       fi
     done
 
     if [ "$found" = "0" ]; then
-      local display_name=$(get_display_name "$known")
-      echo -e "  ${RED}-${RESET} Agent removed: ${CYAN}$display_name${RESET}"
+      # Delete from MeshSig server
+      if [ -n "$known_did" ]; then
+        curl -s -X DELETE "$MESHSIG_URL/agents/$known_did" > /dev/null 2>&1
+      fi
+      echo -e "  ${RED}-${RESET} Agent removed: ${CYAN}${known_name:-$known_dir}${RESET}"
       # Remove from state file
-      grep -vx "$known" "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+      grep -v "^$known_dir|" "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
       changes=$((changes + 1))
     fi
   done < "$STATE_FILE"

@@ -211,6 +211,30 @@ export class Registry extends EventEmitter {
   // -- Key Rotation ----------------------------------------------------------
 
   /**
+   * Delete an agent completely — by DID or display name.
+   */
+  deleteAgent(identifier: string): boolean {
+    let did: string | undefined;
+
+    if (identifier.startsWith('did:msig:')) {
+      did = identifier;
+    } else {
+      // Find by display name
+      const agent = this.db.prepare('SELECT did FROM agents WHERE display_name = ?').get(identifier) as any;
+      if (agent) did = agent.did;
+    }
+
+    if (!did) return false;
+
+    this.db.prepare('DELETE FROM connections WHERE agent_a_did = ? OR agent_b_did = ?').run(did, did);
+    this.db.prepare('DELETE FROM messages WHERE from_did = ? OR to_did = ?').run(did, did);
+    this.db.prepare('DELETE FROM agents WHERE did = ?').run(did);
+
+    this.emit_event('agent:removed', { did });
+    return true;
+  }
+
+  /**
    * Rotate an agent's keypair. The DID stays the same but the signing key changes.
    * Requires the current private key to prove ownership.
    */

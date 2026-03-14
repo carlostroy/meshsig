@@ -56,6 +56,39 @@ npm install -g meshsig
 meshsig start
 ```
 
+## Proxy Mode (Recommended)
+
+MeshSig can run as a **transparent proxy** in front of any agent gateway. Every agent-to-agent message is automatically intercepted, signed, and forwarded — **zero changes to your agents**.
+
+```bash
+# Start MeshSig as proxy in front of your gateway on port 3001
+meshsig start --gateway http://localhost:3001
+
+# That's it. Point your agents to MeshSig instead of the gateway.
+# Every delegation is now cryptographically signed.
+```
+
+**How it works:**
+
+```
+WITHOUT MESHSIG:
+  Agent → curl localhost:3001/invoke-agent → Gateway → executes
+
+WITH MESHSIG:
+  Agent → curl localhost:4888/invoke-agent → MeshSig [SIGN] → Gateway:3001 → executes
+                                                ↓
+                                          Dashboard shows
+                                          SIGNED ✓
+```
+
+The agent doesn't know MeshSig exists. It sends requests like normal. MeshSig intercepts, signs with Ed25519, logs to the audit trail, broadcasts to the dashboard, and forwards to the real gateway.
+
+**For OpenClaw:**
+```bash
+meshsig start --gateway http://localhost:3001
+bash scripts/install.sh   # Register agents + create identities
+```
+
 **Or from source:**
 ```bash
 git clone https://github.com/carlostroy/meshsig.git

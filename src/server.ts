@@ -23,6 +23,7 @@ export interface ServerConfig {
   dbPath: string;
   name: string;
   peers: string[];
+  gatewayUrl?: string; // upstream gateway to proxy (e.g. http://localhost:3001)
 }
 
 export class MeshServer {
@@ -44,6 +45,7 @@ export class MeshServer {
       dbPath: config.dbPath || ':memory:',
       name: config.name || 'meshsig',
       peers: config.peers || [],
+      gatewayUrl: config.gatewayUrl || process.env.MESH_GATEWAY || undefined,
     };
 
     this.registry = new Registry(this.config.dbPath);
@@ -94,8 +96,8 @@ export class MeshServer {
     const method = req.method;
 
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-secret, x-meshsig-caller, Authorization');
     if (method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
     try {
@@ -154,6 +156,15 @@ export class MeshServer {
         const agent = this.registry.getAgent(did);
         if (!agent) return this._json(res, 404, { error: 'Not found' });
         return this._json(res, 200, { agent });
+      }
+
+      // Delete agent
+      if (method === 'DELETE' && path.startsWith('/agents/')) {
+        const identifier = decodeURIComponent(path.slice('/agents/'.length));
+        const deleted = this.registry.deleteAgent(identifier);
+        if (!deleted) return this._json(res, 404, { error: 'Agent not found' });
+        this._broadcast({ type: 'agent:removed', timestamp: new Date().toISOString(), data: { identifier } });
+        return this._json(res, 200, { message: 'Agent deleted', identifier });
       }
 
       // Key rotation — generate new keypair while keeping the same DID
@@ -369,6 +380,21 @@ export class MeshServer {
         return;
       }
 
+      // ================================================================
+      // PROXY — Intercept agent-to-agent communication
+      // Signs every delegation with Ed25519 before forwarding to gateway
+      // ================================================================
+
+      if (this.config.gatewayUrl) {
+        // Intercept invoke-agent: sign + log + forward
+        if (method === 'POST' && (path === '/invoke-agent' || path === '/invoke-team')) {
+          return this._proxyWithSignature(req, res, body, path);
+        }
+
+        // Forward all other unmatched routes to gateway (transparent proxy)
+        return this._proxyPassthrough(req, res, body, path, method!);
+      }
+
       // API docs
       this._json(res, 404, { error: 'Not found', endpoints: [
         'GET  /', 'GET  /health', 'GET  /stats', 'GET  /snapshot',
@@ -448,6 +474,182 @@ export class MeshServer {
     }
     entry.count++;
     return entry.count <= this.RATE_LIMIT;
+  }
+
+  // -- Proxy -----------------------------------------------------------------
+
+  /**
+   * Proxy /invoke-agent with cryptographic signing.
+   * Signs the delegation, logs it, broadcasts to dashboard, then forwards.
+   */
+  private async _proxyWithSignature(req: IncomingMessage, res: ServerResponse, body: any, path: string) {
+    const gatewayUrl = this.config.gatewayUrl!;
+    const target = body?.target_client_name || body?.clientName || body?.agent || 'unknown';
+    const message = body?.message || '';
+    const callerHeader = req.headers['x-meshsig-caller'] as string || '';
+
+    // Try to find caller agent from registered agents
+    let callerDid: string | undefined;
+    let callerName = callerHeader || 'unknown';
+    let callerKey: string | undefined;
+
+    // Auto-detect caller from request context
+    const cwd = body?._cwd || '';
+    if (cwd) {
+      const match = cwd.match(/agent-[^/]+/);
+      if (match) {
+        const agents = this.registry.listAgents();
+        const found = agents.find(a => cwd.includes(a.displayName.toLowerCase()) || match[0].toLowerCase().includes(a.displayName.toLowerCase()));
+        if (found) {
+          callerDid = found.did;
+          callerName = found.displayName;
+        }
+      }
+    }
+
+    // Find target agent
+    let targetDid: string | undefined;
+    let targetName = target;
+    const agents = this.registry.listAgents();
+    for (const a of agents) {
+      if (target.toLowerCase().includes(a.displayName.toLowerCase())) {
+        targetDid = a.did;
+        targetName = a.displayName;
+        break;
+      }
+    }
+
+    // If we don't have caller, try to find from identities dir
+    if (!callerDid) {
+      // Use first manager as default caller
+      const manager = agents.find(a => a.capabilities?.some((c: any) => c.type === 'management' || c.type === 'delegation'));
+      if (manager) {
+        callerDid = manager.did;
+        callerName = manager.displayName;
+      }
+    }
+
+    // Sign the delegation
+    let signature = '';
+    let verified = false;
+    if (callerDid) {
+      try {
+        // Look for private key in identities
+        const fs = await import('node:fs');
+        const glob = await import('node:path');
+        const idDir = glob.resolve(glob.dirname(this.config.dbPath === ':memory:' ? process.cwd() : this.config.dbPath), '..', 'identities');
+        const files = fs.existsSync(idDir) ? fs.readdirSync(idDir) : [];
+        for (const f of files) {
+          try {
+            const data = JSON.parse(fs.readFileSync(glob.resolve(idDir, f), 'utf-8'));
+            if (data.did === callerDid) {
+              callerKey = data.privateKey;
+              break;
+            }
+          } catch {}
+        }
+
+        // Also check /opt/meshsig/identities
+        const optDir = '/opt/meshsig/identities';
+        if (!callerKey && fs.existsSync(optDir)) {
+          const optFiles = fs.readdirSync(optDir);
+          for (const f of optFiles) {
+            try {
+              const data = JSON.parse(fs.readFileSync(glob.resolve(optDir, f), 'utf-8'));
+              if (data.did === callerDid) {
+                callerKey = data.privateKey;
+                break;
+              }
+            } catch {}
+          }
+        }
+
+        if (callerKey) {
+          const ts = new Date().toISOString();
+          signature = await sign(`${message}|${ts}`, callerKey);
+          if (callerDid) {
+            verified = await verifyWithDid(`${message}|${ts}`, signature, callerDid);
+          }
+
+          // Log the signed message
+          if (callerDid && targetDid) {
+            this.registry.logMessage(callerDid, targetDid, message, signature, verified);
+          }
+        }
+      } catch (err: any) {
+        // Signing failed — still forward, just unsigned
+        console.error(`[proxy] signing failed: ${err.message}`);
+      }
+    }
+
+    // Broadcast to dashboard
+    this._broadcast({
+      type: verified ? 'message:signed' : 'proxy:forwarded',
+      timestamp: new Date().toISOString(),
+      data: {
+        from: callerName,
+        to: targetName,
+        fromDid: callerDid,
+        toDid: targetDid,
+        message: message.slice(0, 200),
+        signed: verified,
+        signature: signature.slice(0, 20) + '...',
+      },
+    });
+
+    // Forward to real gateway
+    try {
+      const gwRes = await fetch(`${gatewayUrl}${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...( req.headers['x-api-secret'] ? { 'x-api-secret': req.headers['x-api-secret'] as string } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      const gwData = await gwRes.json() as any;
+      
+      // Add meshsig metadata to response
+      gwData._meshsig = {
+        signed: verified,
+        from: callerName,
+        to: targetName,
+        signature: signature ? signature.slice(0, 20) + '...' : null,
+      };
+
+      return this._json(res, gwRes.status, gwData);
+    } catch (err: any) {
+      return this._json(res, 502, { error: 'Gateway unreachable', details: err.message, gateway: gatewayUrl });
+    }
+  }
+
+  /**
+   * Transparent passthrough proxy — forwards unmatched routes to gateway.
+   */
+  private async _proxyPassthrough(req: IncomingMessage, res: ServerResponse, body: any, path: string, method: string) {
+    const gatewayUrl = this.config.gatewayUrl!;
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (req.headers['x-api-secret']) headers['x-api-secret'] = req.headers['x-api-secret'] as string;
+      if (req.headers['authorization']) headers['authorization'] = req.headers['authorization'] as string;
+
+      const fetchOpts: any = { method, headers };
+      if (method === 'POST' && body) fetchOpts.body = JSON.stringify(body);
+
+      const gwRes = await fetch(`${gatewayUrl}${path}`, fetchOpts);
+      const contentType = gwRes.headers.get('content-type') || 'application/json';
+
+      if (contentType.includes('json')) {
+        const gwData = await gwRes.json();
+        return this._json(res, gwRes.status, gwData);
+      } else {
+        const text = await gwRes.text();
+        res.writeHead(gwRes.status, { 'Content-Type': contentType });
+        res.end(text);
+      }
+    } catch (err: any) {
+      return this._json(res, 502, { error: 'Gateway unreachable', details: err.message });
+    }
   }
 
   private _verifyPageHtml(): string {

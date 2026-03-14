@@ -1,0 +1,15 @@
+[Unit]
+Description=MeshSig — Cryptographic security layer for AI agents
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/node /opt/meshsig/dist/main.js start --no-terminal --gateway http://127.0.0.1:3001
+Restart=always
+RestartSec=5
+Environment=MESH_PORT=4888
+Environment=NODE_ENV=production
+WorkingDirectory=/opt/meshsig
+
+[Install]
+WantedBy=multi-user.target
