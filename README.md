@@ -3,6 +3,7 @@
 </p>
 
 <p align="center">
+  <img src="https://github.com/carlostroy/meshsig/actions/workflows/ci.yml/badge.svg" alt="CI" />
   <img src="https://img.shields.io/badge/Ed25519-Cryptographic_Identity-00d4ff?style=for-the-badge" />
   <img src="https://img.shields.io/badge/W3C-DID_Standard-8b5cf6?style=for-the-badge" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" />
@@ -395,6 +396,17 @@ See [docs/SECURITY.md](docs/SECURITY.md) for the full security whitepaper.
 
 No database to configure. No cloud services. No API keys. Install, start, secure.
 
+## Docker
+
+Run MeshSig without installing Node.js:
+
+```bash
+docker build -t meshsig .
+docker run -p 4888:4888 meshsig
+```
+
+Open `http://localhost:4888` — dashboard running in a container.
+
 ## MCP Server
 
 MeshSig works as a Model Context Protocol (MCP) server — any AI tool can use it directly.
@@ -443,5 +455,5 @@ MIT
 
 <p align="center">
   <strong>MeshSig</strong> — Cryptographic security layer for AI agents.<br>
-  <a href="https://meshsig.ai">meshsig.ai</a> · <a href="https://github.com/carlostroy/meshsig">GitHub</a>
+  <a href="https://meshsig.dev">meshsig.dev</a> · <a href="https://github.com/carlostroy/meshsig">GitHub</a>
 </p>

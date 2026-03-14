@@ -520,7 +520,7 @@ ${BOLD}EXAMPLES${RESET}
   ${GREEN}# Pipe: sign and verify in one shot${RESET}
   meshsig sign "hello" --json | meshsig verify --json
 
-${DIM}https://meshsig.ai${RESET} — ${DIM}https://github.com/carlostroy/meshsig${RESET}
+${DIM}https://meshsig.dev${RESET} — ${DIM}https://github.com/carlostroy/meshsig${RESET}
 `);
 }
 
