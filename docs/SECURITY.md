@@ -1,6 +1,6 @@
 # MeshSig Security Whitepaper
 
-**Version 0.1 — March 2026**
+**Version 0.5 — March 2026**
 **Status:** Living document — updated as the protocol evolves.
 
 ---
@@ -380,7 +380,7 @@ MeshSig assumes:
 
 ```bash
 git clone https://github.com/carlostroy/meshsig.git
-cd meshsig
+cd meshsig # or: npm install meshsig
 npm install
 npm run build
 npm run test
@@ -391,7 +391,7 @@ npm run test
 ### 10.2 Verify Signature Correctness
 
 ```typescript
-import { generateIdentity, sign, verify } from '@meshsig/core';
+import { generateIdentity, sign, verify } from 'meshsig';
 
 // Generate two identities
 const alice = await generateIdentity();

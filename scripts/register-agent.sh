@@ -2,7 +2,7 @@
 # ==============================================================================
 # MeshSig — Auto-register a new agent
 #
-# Called automatically when xrunly-api provisions a new agent.
+# Called automatically when a new agent is provisioned.
 # Usage: bash register-agent.sh <client_name>
 # Example: bash register-agent.sh agent-mari---atendente-de--17734059
 # ==============================================================================

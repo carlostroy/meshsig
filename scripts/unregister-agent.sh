@@ -2,7 +2,7 @@
 # ==============================================================================
 # MeshSig — Unregister an agent
 #
-# Called when xrunly-api deprovisions an agent.
+# Called when an agent is removed.
 # Usage: bash unregister-agent.sh <client_name>
 # ==============================================================================
 

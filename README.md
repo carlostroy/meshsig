@@ -41,6 +41,20 @@ No one can impersonate an agent. No one can tamper with a message. Every interac
 
 ## Quick Start
 
+**Use directly (no install):**
+```bash
+npx meshsig init        # Generate Ed25519 identity
+npx meshsig sign "msg"  # Sign a message
+npx meshsig start       # Start the server + dashboard
+```
+
+**Or install globally:**
+```bash
+npm install -g meshsig
+meshsig start
+```
+
+**Or from source:**
 ```bash
 git clone https://github.com/carlostroy/meshsig.git
 cd meshsig
