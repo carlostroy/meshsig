@@ -217,7 +217,7 @@ footer .right a:hover{color:var(--cyan)}
     <span class="badge b-green">OPEN SOURCE</span>
   </div>
   <div class="install-box">
-    <code><span class="prefix">$</span> npm install -g meshsig</code>
+    <code><span class="prefix">$</span> curl -fsSL https://meshsig.dev/install.sh | bash</code>
     <button id="copyBtn" class="copy-btn">COPY</button>
   </div>
   <div class="scroll-hint" style="margin-top:48px">scroll ↓</div>
@@ -371,5 +371,5 @@ const obs=new IntersectionObserver(entries=>{
 },{threshold:0.1,rootMargin:'0px 0px -40px 0px'});
 document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
 </script>
-<script>document.getElementById("copyBtn").addEventListener("click",function(){navigator.clipboard.writeText("npm install -g meshsig").then(function(){document.getElementById("copyBtn").textContent="COPIED";setTimeout(function(){document.getElementById("copyBtn").textContent="COPY"},1500)})});</script></body>
+<script>document.getElementById("copyBtn").addEventListener("click",function(){navigator.clipboard.writeText("curl -fsSL https://meshsig.dev/install.sh | bash").then(function(){document.getElementById("copyBtn").textContent="COPIED";setTimeout(function(){document.getElementById("copyBtn").textContent="COPY"},1500)})});</script></body>
 </html>
