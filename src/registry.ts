@@ -6,7 +6,7 @@
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { generateIdentity, hashPayload, sign } from './crypto.js';
+import { generateIdentity, hashPayload, sign, verify } from './crypto.js';
 import type { AgentIdentity, Capability, PermissionScope } from './crypto.js';
 
 export interface AgentRecord {
@@ -90,6 +90,16 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_messages_time ON messages(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_trust_from ON trust_events(from_did, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_trust_to ON trust_events(to_did, created_at DESC);
+  CREATE TABLE IF NOT EXISTS revoked_agents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, did TEXT NOT NULL UNIQUE,
+    reason TEXT NOT NULL, revoked_at TEXT NOT NULL,
+    previous_public_key TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS key_rotations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, did TEXT NOT NULL,
+    old_public_key TEXT NOT NULL, new_public_key TEXT NOT NULL,
+    rotated_at TEXT NOT NULL
+  );
 `;
 
 export class Registry extends EventEmitter {
@@ -196,6 +206,92 @@ export class Registry extends EventEmitter {
     const now = new Date().toISOString();
     this.db.prepare('UPDATE agents SET last_seen_at = ?, updated_at = ? WHERE did = ?').run(now, now, did);
     this.emit_event('agent:heartbeat', { did, timestamp: now });
+  }
+
+  // -- Key Rotation ----------------------------------------------------------
+
+  /**
+   * Rotate an agent's keypair. The DID stays the same but the signing key changes.
+   * Requires the current private key to prove ownership.
+   */
+  async rotateKey(did: string, currentPrivateKey: string): Promise<{ publicKey: string; privateKey: string; rotatedAt: string } | null> {
+    const agent = this.getAgent(did);
+    if (!agent) return null;
+
+    // Verify caller owns the current key by signing a challenge
+    const challenge = `rotate:${did}:${Date.now()}`;
+    try {
+      const sig = await sign(challenge, currentPrivateKey);
+      const valid = await verify(challenge, sig, agent.publicKey);
+      if (!valid) return null;
+    } catch { return null; }
+
+    // Generate new keypair
+    const newIdentity = await generateIdentity();
+    const now = new Date().toISOString();
+
+    // Log the rotation
+    this.db.prepare(`
+      INSERT INTO key_rotations (did, old_public_key, new_public_key, rotated_at)
+      VALUES (?, ?, ?, ?)
+    `).run(did, agent.publicKey, newIdentity.publicKey, now);
+
+    // Update agent's public key
+    this.db.prepare(`
+      UPDATE agents SET public_key = ?, updated_at = ? WHERE did = ?
+    `).run(newIdentity.publicKey, now, did);
+
+    this.emit_event('agent:key-rotated', {
+      did, oldKeyPrefix: agent.publicKey.slice(0, 12) + '...',
+      newKeyPrefix: newIdentity.publicKey.slice(0, 12) + '...', rotatedAt: now,
+    });
+
+    return { publicKey: newIdentity.publicKey, privateKey: newIdentity.privateKey, rotatedAt: now };
+  }
+
+  // -- Agent Revocation ------------------------------------------------------
+
+  /**
+   * Revoke an agent — mark as compromised. All future messages from this
+   * agent will be rejected. Cannot be undone.
+   */
+  revokeAgent(did: string, reason: string): boolean {
+    const agent = this.getAgent(did);
+    if (!agent) return false;
+
+    const now = new Date().toISOString();
+
+    // Add to revocation list
+    try {
+      this.db.prepare(`
+        INSERT OR REPLACE INTO revoked_agents (did, reason, revoked_at, previous_public_key)
+        VALUES (?, ?, ?, ?)
+      `).run(did, reason, now, agent.publicKey);
+    } catch {}
+
+    // Mark agent as revoked
+    this.db.prepare(`
+      UPDATE agents SET status = 'revoked', updated_at = ? WHERE did = ?
+    `).run(now, did);
+
+    this.emit_event('agent:revoked', { did, name: agent.displayName, reason, revokedAt: now });
+
+    return true;
+  }
+
+  /**
+   * Check if an agent is revoked.
+   */
+  isRevoked(did: string): boolean {
+    const row = this.db.prepare('SELECT did FROM revoked_agents WHERE did = ?').get(did) as any;
+    return !!row;
+  }
+
+  /**
+   * Get the full revocation list.
+   */
+  getRevokedAgents(): any[] {
+    return this.db.prepare('SELECT * FROM revoked_agents ORDER BY revoked_at DESC').all();
   }
 
   // -- Discovery -------------------------------------------------------------

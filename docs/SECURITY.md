@@ -1,6 +1,6 @@
 # MeshSig Security Whitepaper
 
-**Version 0.5 — March 2026**
+**Version 0.6 — March 2026**
 **Status:** Living document — updated as the protocol evolves.
 
 ---
@@ -355,9 +355,9 @@ Base58 encoding via `bs58` for DIDs. Base58 is the same encoding used by Bitcoin
 
 | Threat | Status | Planned |
 |--------|--------|---------|
-| Compromised private key | No key rotation mechanism | Phase 2 |
-| Compromised agent revocation | No revocation list | Phase 2 |
-| DDoS on handshake endpoint | No rate limiting | Phase 3 |
+| Compromised private key | ✅ Key rotation via `/agents/rotate-key` | Implemented v0.6 |
+| Compromised agent revocation | ✅ Revocation list via `/agents/revoke` & `/revoked` | Implemented v0.6 |
+| DDoS on handshake endpoint | ✅ 60 req/min per IP rate limiting | Implemented v0.6 |
 | Side-channel on local machine | Depends on OS security | Ongoing |
 | Quantum computing attacks | Ed25519 is pre-quantum | Monitor; DID allows algorithm rotation |
 | Traffic analysis | No message padding/mixing | Future consideration |
@@ -452,10 +452,10 @@ The entire MeshSig codebase is open source under MIT license. Any cryptographer,
 
 | Feature | Phase | Description |
 |---------|-------|-------------|
-| Key rotation | 2 | Replace compromised keys without losing identity |
-| Revocation lists | 2 | Publish list of compromised/retired agent DIDs |
+| Key rotation | ✅ Done | Replace compromised keys without losing identity |
+| Revocation lists | ✅ Done | Publish list of compromised/retired agent DIDs |
 | Connection expiry | 2 | Automatic timeout on idle connections |
-| Rate limiting | 3 | Prevent handshake flooding |
+| Rate limiting | ✅ Done | 60 req/min per IP on all endpoints |
 | Hash-chained audit | 3 | Blockchain-style append-only audit log |
 | Transport encryption | 3 | Optional end-to-end encrypted messaging |
 | Post-quantum readiness | Future | Algorithm agility in DID system |

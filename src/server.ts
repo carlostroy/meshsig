@@ -33,6 +33,9 @@ export class MeshServer {
   private wss: WebSocketServer;
   private dashboards: Set<WebSocket> = new Set();
   private dashboardHtml: string;
+  private rateLimiter: Map<string, { count: number; resetAt: number }> = new Map();
+  private readonly RATE_LIMIT = 60; // requests per window
+  private readonly RATE_WINDOW = 60_000; // 1 minute
 
   constructor(config: Partial<ServerConfig> = {}) {
     this.config = {
@@ -99,6 +102,19 @@ export class MeshServer {
       let body: any = null;
       if (method === 'POST') body = await this._readBody(req);
 
+      // Rate limiting (skip for dashboard and static)
+      if (path !== '/' && path !== '/dashboard') {
+        const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+        if (!this._checkRateLimit(ip)) {
+          return this._json(res, 429, {
+            error: 'Rate limit exceeded',
+            retryAfter: Math.ceil(this.RATE_WINDOW / 1000),
+            limit: this.RATE_LIMIT,
+            window: `${this.RATE_WINDOW / 1000}s`,
+          });
+        }
+      }
+
       // Dashboard
       if (method === 'GET' && (path === '/' || path === '/dashboard')) {
         res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -140,6 +156,40 @@ export class MeshServer {
         return this._json(res, 200, { agent });
       }
 
+      // Key rotation — generate new keypair while keeping the same DID
+      if (method === 'POST' && path === '/agents/rotate-key') {
+        if (!body?.did || !body?.currentPrivateKey) {
+          return this._json(res, 400, { error: 'did and currentPrivateKey required' });
+        }
+        const result = await this.registry.rotateKey(body.did, body.currentPrivateKey);
+        if (!result) return this._json(res, 404, { error: 'Agent not found or invalid key' });
+        return this._json(res, 200, {
+          message: 'Key rotated successfully',
+          did: body.did,
+          newPublicKey: result.publicKey,
+          rotatedAt: result.rotatedAt,
+          warning: 'Store the new private key securely. The old key is now invalid.',
+        });
+      }
+
+      // Revoke agent — mark as compromised, reject all future messages
+      if (method === 'POST' && path === '/agents/revoke') {
+        if (!body?.did) return this._json(res, 400, { error: 'did required' });
+        const reason = body.reason || 'Revoked by operator';
+        const revoked = this.registry.revokeAgent(body.did, reason);
+        if (!revoked) return this._json(res, 404, { error: 'Agent not found' });
+        this._broadcast({
+          type: 'agent:revoked', timestamp: new Date().toISOString(),
+          data: { did: body.did, reason },
+        });
+        return this._json(res, 200, { message: 'Agent revoked', did: body.did, reason });
+      }
+
+      // Revocation list — public list of compromised/revoked agents
+      if (method === 'GET' && path === '/revoked') {
+        return this._json(res, 200, { revoked: this.registry.getRevokedAgents() });
+      }
+
       // Discover
       if (method === 'POST' && path === '/discover') {
         const agents = this.registry.discover(body);
@@ -166,6 +216,13 @@ export class MeshServer {
 
       // Send message (sign + log + broadcast)
       if (method === 'POST' && path === '/messages/send') {
+        // Check revocation before processing
+        if (this.registry.isRevoked(body.fromDid)) {
+          return this._json(res, 403, { error: 'Agent is revoked', did: body.fromDid });
+        }
+        if (this.registry.isRevoked(body.toDid)) {
+          return this._json(res, 403, { error: 'Target agent is revoked', did: body.toDid });
+        }
         const ts = new Date().toISOString();
         const sig = await sign(`${body.message}|${ts}`, body.privateKey);
         const valid = await verifyWithDid(`${body.message}|${ts}`, sig, body.fromDid);
@@ -380,6 +437,17 @@ export class MeshServer {
       req.on('data', c => chunks.push(c));
       req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch { reject(new Error('Invalid JSON')); } });
     });
+  }
+
+  private _checkRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const entry = this.rateLimiter.get(ip);
+    if (!entry || now > entry.resetAt) {
+      this.rateLimiter.set(ip, { count: 1, resetAt: now + this.RATE_WINDOW });
+      return true;
+    }
+    entry.count++;
+    return entry.count <= this.RATE_LIMIT;
   }
 
   private _verifyPageHtml(): string {

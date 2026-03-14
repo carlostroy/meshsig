@@ -1,6 +1,6 @@
 {
   "name": "meshsig",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Cryptographic security layer for AI agents. Ed25519 identity, signed messages, trust scoring.",
   "main": "dist/index.js",
   "type": "module",

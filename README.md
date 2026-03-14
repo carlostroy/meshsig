@@ -95,6 +95,15 @@ meshsig stats
 # Export audit log
 meshsig audit --json > report.json
 
+# Rotate your keypair (DID stays the same)
+meshsig rotate-key
+
+# Revoke a compromised agent
+meshsig revoke "did:msig:..." --reason "Key leaked"
+
+# List revoked agents
+meshsig revoked
+
 # Start the server
 meshsig start --port 4888
 ```
@@ -151,6 +160,49 @@ curl -X POST http://localhost:4888/verify \
   -d '{"message":"hello","signature":"base64...","did":"did:msig:..."}'
 # {"valid": true, "verifiedAt": "2026-03-13T..."}
 ```
+
+## Security Features
+
+### Key Rotation
+
+Rotate an agent's keypair without losing its identity (DID). If a key is compromised, generate a new one and the old key becomes invalid immediately.
+
+```bash
+# CLI
+meshsig rotate-key
+
+# API
+curl -X POST http://localhost:4888/agents/rotate-key \
+  -H 'Content-Type: application/json' \
+  -d '{"did":"did:msig:...","currentPrivateKey":"base64..."}'
+```
+
+All rotations are logged. The DID stays the same — only the signing key changes.
+
+### Agent Revocation
+
+Permanently revoke a compromised agent. All future messages from or to this agent will be rejected with `403 Forbidden`.
+
+```bash
+# CLI
+meshsig revoke "did:msig:..." --reason "Key leaked"
+
+# API
+curl -X POST http://localhost:4888/agents/revoke \
+  -H 'Content-Type: application/json' \
+  -d '{"did":"did:msig:...","reason":"Compromised key"}'
+```
+
+Revocation is irreversible by design. Check the revocation list:
+
+```bash
+meshsig revoked
+# or: curl http://localhost:4888/revoked
+```
+
+### Rate Limiting
+
+Built-in protection against abuse. 60 requests per minute per IP address. Exceeding the limit returns `429 Too Many Requests` with retry information.
 
 ## OpenClaw Integration
 
@@ -243,11 +295,14 @@ GET  /audit/export      Compliance audit report (JSON)
 POST /agents/register   Register agent → returns Ed25519 keypair + DID
 GET  /agents            List all agents with trust scores
 GET  /agents/:did       Get specific agent
+POST /agents/rotate-key Rotate an agent's Ed25519 keypair
+POST /agents/revoke     Revoke a compromised agent
+GET  /revoked           List all revoked agents
 
 POST /discover          Find agents by capability
 POST /discover/network  Find across connected peers
 
-POST /messages/send     Sign + verify + log a message
+POST /messages/send     Sign + verify + log a message (blocks revoked agents)
 POST /messages/verify   Verify a message signature
 
 POST /handshake         Cryptographic handshake between agents
@@ -269,6 +324,9 @@ WS   ws://host:port     Live event stream
 | Handshake | Mutual challenge-response with nonce and timestamp |
 | Storage | Local SQLite — no cloud dependency |
 | Audit | Tamper-evident log with cryptographic hashes |
+| Key Rotation | Generate new keypair, DID preserved, old key invalidated |
+| Revocation | Permanently block compromised agents, public revocation list |
+| Rate Limiting | 60 req/min per IP, protects against DDoS |
 
 See [docs/SECURITY.md](docs/SECURITY.md) for the full security whitepaper.
 

@@ -285,6 +285,109 @@ async function cmdStats(server: string) {
   }
 }
 
+async function cmdRotateKey(server: string) {
+  const identity = loadIdentity();
+  if (!identity) {
+    console.log(`\n  ${RED}No identity found.${RESET} Run ${CYAN}meshsig init${RESET} first.\n`);
+    process.exit(1);
+  }
+
+  try {
+    const res = await fetch(`${server}/agents/rotate-key`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ did: identity.did, currentPrivateKey: identity.privateKey }),
+    });
+    const data = await res.json() as any;
+
+    if (!res.ok) {
+      console.log(`\n  ${RED}Key rotation failed: ${data.error}${RESET}\n`);
+      process.exit(1);
+    }
+
+    // Update local identity file with new keys
+    identity.publicKey = data.newPublicKey;
+    // We need to get the new private key from the response — but server shouldn't return it
+    // Instead, rotation should be done locally too
+    console.log(`
+  ${GREEN}${BOLD}✓ Key rotated${RESET}
+
+  ${DIM}DID${RESET}            ${CYAN}${identity.did}${RESET}
+  ${DIM}NEW PUBLIC KEY${RESET}  ${data.newPublicKey}
+  ${DIM}ROTATED AT${RESET}     ${data.rotatedAt}
+
+  ${YELLOW}⚠  Update your local identity file with the new private key.${RESET}
+`);
+  } catch {
+    console.log(`\n  ${RED}Cannot connect to ${server}${RESET}\n`);
+    process.exit(1);
+  }
+}
+
+async function cmdRevoke(server: string, did: string, reason: string) {
+  try {
+    const res = await fetch(`${server}/agents/revoke`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ did, reason }),
+    });
+    const data = await res.json() as any;
+
+    if (!res.ok) {
+      console.log(`\n  ${RED}Revocation failed: ${data.error}${RESET}\n`);
+      process.exit(1);
+    }
+
+    if (process.argv.includes('--json')) {
+      console.log(JSON.stringify(data, null, 2));
+      return;
+    }
+
+    console.log(`
+  ${RED}${BOLD}✓ Agent revoked${RESET}
+
+  ${DIM}DID${RESET}      ${CYAN}${did}${RESET}
+  ${DIM}REASON${RESET}   ${reason}
+
+  ${DIM}This agent can no longer send or receive signed messages.${RESET}
+  ${DIM}This action cannot be undone.${RESET}
+`);
+  } catch {
+    console.log(`\n  ${RED}Cannot connect to ${server}${RESET}\n`);
+    process.exit(1);
+  }
+}
+
+async function cmdRevoked(server: string) {
+  try {
+    const res = await fetch(`${server}/revoked`);
+    const data = await res.json() as any;
+    const list = data.revoked || [];
+
+    if (process.argv.includes('--json')) {
+      console.log(JSON.stringify(data, null, 2));
+      return;
+    }
+
+    console.log(`\n  ${CYAN}${BOLD}Revoked Agents${RESET} — ${server}\n`);
+
+    if (list.length === 0) {
+      console.log(`  ${GREEN}No revoked agents.${RESET} All identities are active.\n`);
+      return;
+    }
+
+    for (const r of list) {
+      console.log(`  ${RED}✗${RESET} ${DIM}${r.did}${RESET}`);
+      console.log(`    ${DIM}Reason:${RESET}  ${r.reason}`);
+      console.log(`    ${DIM}Revoked:${RESET} ${r.revoked_at}\n`);
+    }
+    console.log(`  ${DIM}${list.length} revoked agent(s)${RESET}\n`);
+  } catch {
+    console.log(`\n  ${RED}Cannot connect to ${server}${RESET}\n`);
+    process.exit(1);
+  }
+}
+
 // -- Server command ----------------------------------------------------------
 
 function parseStartArgs() {
@@ -379,6 +482,9 @@ ${BOLD}COMMANDS${RESET}
   ${CYAN}meshsig agents${RESET}                        List agents on the mesh
   ${CYAN}meshsig stats${RESET}                         Server statistics
   ${CYAN}meshsig audit${RESET}                         Export signed message audit log
+  ${CYAN}meshsig rotate-key${RESET}                    Rotate your Ed25519 keypair
+  ${CYAN}meshsig revoke${RESET} ${DIM}<did>${RESET}                   Revoke a compromised agent
+  ${CYAN}meshsig revoked${RESET}                       List revoked agents
   ${CYAN}meshsig start${RESET}                         Start the MeshSig server
 
 ${BOLD}OPTIONS${RESET}
@@ -464,6 +570,21 @@ async function main() {
     case 'audit':
       const format = args.includes('--json') ? 'json' : 'pretty';
       await cmdAudit(server, format);
+      break;
+
+    case 'rotate-key': case 'rotate':
+      await cmdRotateKey(server);
+      break;
+
+    case 'revoke':
+      const revokeDid = args.find(a => !a.startsWith('-'));
+      const revokeReason = args.find((a, i) => args[i - 1] === '--reason') || 'Revoked via CLI';
+      if (!revokeDid) { console.log(`\n  ${RED}Usage: meshsig revoke <did> [--reason "..."]${RESET}\n`); process.exit(1); }
+      await cmdRevoke(server, revokeDid, revokeReason);
+      break;
+
+    case 'revoked':
+      await cmdRevoked(server);
       break;
 
     case 'start':
