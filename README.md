@@ -20,7 +20,8 @@
   <a href="https://meshsig.ai">meshsig.ai</a> ·
   <a href="#cli">CLI</a> ·
   <a href="#dashboard">Dashboard</a> ·
-  <a href="#openclaw-integration">OpenClaw</a> ·
+  <a href="#mcp-server">MCP</a> ·
+  <a href="#integrations">Integrations</a> ·
   <a href="#api-reference">API</a> ·
   <a href="#audit--compliance">Audit</a>
 </p>
@@ -204,9 +205,39 @@ meshsig revoked
 
 Built-in protection against abuse. 60 requests per minute per IP address. Exceeding the limit returns `429 Too Many Requests` with retry information.
 
-## OpenClaw Integration
+## Integrations
 
-MeshSig integrates natively with [OpenClaw](https://openclaw.com). One install secures all agent-to-agent delegations with cryptographic signatures.
+MeshSig is **framework-agnostic** — it works with any AI agent framework via the HTTP API, CLI, or MCP protocol.
+
+### Any Framework (HTTP API)
+
+Use the REST API to sign and verify messages from any language or framework:
+
+```bash
+# Register an agent
+curl -X POST http://localhost:4888/agents/register \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"my-agent","capabilities":[{"type":"analysis"}]}'
+
+# Send a signed message
+curl -X POST http://localhost:4888/messages/send \
+  -H 'Content-Type: application/json' \
+  -d '{"fromDid":"did:msig:...","toDid":"did:msig:...","message":"task","privateKey":"..."}'
+```
+
+Works with **LangChain**, **CrewAI**, **AutoGen**, **LlamaIndex**, **Semantic Kernel**, **Haystack**, custom agents, and any system that can make HTTP requests.
+
+### MCP (Claude, Cursor, Windsurf, Cline)
+
+MeshSig ships as a native MCP server. See the [MCP Server](#mcp-server) section.
+
+```bash
+npx meshsig-mcp
+```
+
+### OpenClaw (Native)
+
+MeshSig includes built-in scripts for OpenClaw agent-to-agent delegation:
 
 ```bash
 # With MeshSig running on the same server as OpenClaw:
@@ -224,7 +255,7 @@ Before:  Agent A → invoke.sh → Agent B  (no proof)
 After:   Agent A → invoke.sh → [SIGN] → MeshSig → [VERIFY] → Agent B
 ```
 
-### Auto-register new agents
+### Auto-register agents
 
 ```bash
 # When a new agent is provisioned:
@@ -232,6 +263,34 @@ bash scripts/register-agent.sh agent-name-here
 
 # When an agent is removed:
 bash scripts/unregister-agent.sh agent-name-here
+```
+
+### Python / JavaScript SDK
+
+Use MeshSig programmatically:
+
+```javascript
+// JavaScript / TypeScript
+import { generateIdentity, sign, verify } from 'meshsig';
+
+const agent = await generateIdentity();
+const signature = await sign('hello', agent.privateKey);
+const valid = await verify('hello', signature, agent.publicKey); // true
+```
+
+```python
+# Python — use the HTTP API
+import requests
+
+# Register
+r = requests.post('http://localhost:4888/agents/register',
+    json={'name': 'my-agent', 'capabilities': [{'type': 'analysis'}]})
+agent = r.json()
+
+# Verify
+r = requests.post('http://localhost:4888/verify',
+    json={'message': 'hello', 'signature': sig, 'did': agent['record']['did']})
+print(r.json()['valid'])  # True
 ```
 
 ## How It Works
@@ -335,6 +394,46 @@ See [docs/SECURITY.md](docs/SECURITY.md) for the full security whitepaper.
 - Node.js ≥ 18
 
 No database to configure. No cloud services. No API keys. Install, start, secure.
+
+## MCP Server
+
+MeshSig works as a Model Context Protocol (MCP) server — any AI tool can use it directly.
+
+**9 tools available:** `meshsig_init`, `meshsig_sign`, `meshsig_verify`, `meshsig_identity`, `meshsig_agents`, `meshsig_stats`, `meshsig_audit`, `meshsig_revoke`, `meshsig_revoked`
+
+### Claude Desktop
+
+Add to `~/.claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "meshsig": {
+      "command": "npx",
+      "args": ["meshsig-mcp"]
+    }
+  }
+}
+```
+
+### Cursor / Windsurf / Cline
+
+Add to your MCP config:
+
+```json
+{
+  "meshsig": {
+    "command": "npx",
+    "args": ["meshsig-mcp"]
+  }
+}
+```
+
+Then ask your AI: *"Sign this message with MeshSig"* or *"Verify this agent's signature"* — it works directly.
+
+### Environment Variables
+
+- `MESHSIG_SERVER` — MeshSig server URL (default: `http://localhost:4888`)
 
 ## License
 

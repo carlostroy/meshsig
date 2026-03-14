@@ -1,17 +1,20 @@
 {
   "name": "meshsig",
-  "version": "0.6.0",
-  "description": "Cryptographic security layer for AI agents. Ed25519 identity, signed messages, trust scoring.",
+  "version": "0.7.0",
+  "description": "Cryptographic security layer for AI agents. Ed25519 identity, signed messages, trust scoring. Works with LangChain, CrewAI, AutoGen, OpenClaw, or any agent framework.",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "meshsig": "dist/main.js"
+    "meshsig": "dist/main.js",
+    "meshsig-mcp": "dist/mcp-server.js"
   },
   "license": "MIT",
   "keywords": [
     "ai-agents", "cryptography", "ed25519", "digital-signatures",
-    "identity", "did", "security", "trust", "openclaw", "mesh",
-    "agent-security", "w3c-did", "audit", "compliance"
+    "identity", "did", "security", "trust", "mesh",
+    "agent-security", "w3c-did", "audit", "compliance", "mcp",
+    "model-context-protocol", "langchain", "crewai", "autogen",
+    "openclaw", "llm-agents", "agent-framework"
   ],
   "repository": {
     "type": "git",

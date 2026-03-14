@@ -1,6 +1,6 @@
 # MeshSig Security Whitepaper
 
-**Version 0.6 — March 2026**
+**Version 0.7 — March 2026**
 **Status:** Living document — updated as the protocol evolves.
 
 ---
