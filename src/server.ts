@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { Registry } from './registry.js';
 import { PeerNetwork } from './peers.js';
 import {
-  sign, verifyWithDid, createHandshakeRequest,
+  sign, verify, verifyWithDid, createHandshakeRequest,
   verifyHandshakeRequest, createHandshakeResponse,
 } from './crypto.js';
 import type { MeshEvent } from './registry.js';
@@ -223,11 +223,104 @@ export class MeshServer {
         return this._json(res, 200, { local, remote, total: local.length + remote.length });
       }
 
+      // Audit export — full compliance report
+      if (method === 'GET' && path === '/audit/export') {
+        const format = url.searchParams.get('format') || 'json';
+        const agents = this.registry.listAgents();
+        const connections = this.registry.getConnections();
+        const messages = this.registry.getMessages(1000);
+        const rstats = this.registry.stats();
+        const uptime = process.uptime();
+
+        const report = {
+          meshsig: {
+            version: '0.5.0',
+            exported: new Date().toISOString(),
+            server: this.config.name,
+          },
+          summary: {
+            totalAgents: agents.length,
+            localAgents: agents.filter(a => a.origin === 'local').length,
+            remoteAgents: agents.filter(a => a.origin === 'remote').length,
+            totalConnections: connections.length,
+            totalMessages: messages.length,
+            verifiedMessages: messages.filter((m: any) => m.verified).length,
+            failedVerifications: messages.filter((m: any) => !m.verified).length,
+            averageTrust: agents.length > 0
+              ? agents.reduce((sum, a) => sum + a.trustScore, 0) / agents.length
+              : 0,
+            uptime,
+          },
+          agents: agents.map(a => ({
+            did: a.did,
+            name: a.displayName,
+            publicKey: a.publicKey,
+            capabilities: a.capabilities,
+            trustScore: a.trustScore,
+            interactionsTotal: a.interactionsTotal,
+            interactionsSuccess: a.interactionsSuccess,
+            origin: a.origin,
+            originServer: a.originServer,
+            createdAt: a.createdAt,
+          })),
+          connections: connections.map((c: any) => ({
+            agentA: c.agentADid,
+            agentB: c.agentBDid,
+            trustScore: c.trustScore,
+            messagesExchanged: c.messagesExchanged,
+            createdAt: c.createdAt,
+          })),
+          messages: messages.map((m: any) => ({
+            id: m.id,
+            from: m.fromDid,
+            to: m.toDid,
+            content: m.content,
+            signature: m.signature,
+            verified: !!m.verified,
+            timestamp: m.createdAt,
+          })),
+        };
+
+        return this._json(res, 200, report);
+      }
+
+      // Public verify endpoint — anyone can verify a signature
+      if (method === 'POST' && path === '/verify') {
+        const { message, signature, publicKey, did } = body;
+        if (!message || !signature) return this._json(res, 400, { error: 'message and signature required' });
+        if (!publicKey && !did) return this._json(res, 400, { error: 'publicKey or did required' });
+
+        let valid: boolean;
+        if (did) {
+          valid = await verifyWithDid(message, signature, did);
+        } else {
+          valid = await verify(message, signature, publicKey);
+        }
+
+        return this._json(res, 200, {
+          valid,
+          message: message.slice(0, 100),
+          signer: did || publicKey,
+          verifiedAt: new Date().toISOString(),
+        });
+      }
+
+      // Verify page — browser-based signature verifier
+      if (method === 'GET' && path === '/verify') {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(this._verifyPageHtml());
+        return;
+      }
+
       // API docs
       this._json(res, 404, { error: 'Not found', endpoints: [
         'GET  /', 'GET  /health', 'GET  /stats', 'GET  /snapshot',
         'POST /agents/register', 'GET  /agents', 'GET  /agents/:did',
         'POST /discover', 'POST /discover/network',
+        'POST /messages/send', 'POST /messages/verify',
+        'POST /handshake', 'GET  /connections', 'GET  /messages',
+        'GET  /peers', 'POST /peers/connect',
+        'GET  /audit/export', 'GET  /verify', 'POST /verify',
         'POST /messages/sign', 'POST /messages/verify', 'POST /messages/send',
         'POST /handshake', 'GET  /connections', 'GET  /messages',
         'GET  /peers', 'POST /peers/connect',
@@ -287,5 +380,100 @@ export class MeshServer {
       req.on('data', c => chunks.push(c));
       req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch { reject(new Error('Invalid JSON')); } });
     });
+  }
+
+  private _verifyPageHtml(): string {
+    return `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeshSig — Signature Verifier</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#050a12;color:#c8d6e5;font-family:'Outfit',sans-serif;min-height:100vh;
+  display:flex;align-items:center;justify-content:center;padding:40px 20px}
+body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,0.02) 0px,rgba(0,0,0,0.02) 1px,transparent 1px,transparent 2px);
+  pointer-events:none;z-index:999}
+.card{background:#0a1220;border:1px solid #0d2137;border-radius:16px;padding:48px;
+  max-width:600px;width:100%;position:relative;z-index:1}
+h1{font:700 24px 'JetBrains Mono',monospace;color:#00d4ff;margin-bottom:8px;letter-spacing:0.04em}
+.sub{font:300 14px 'Outfit',sans-serif;color:#3a7ca5;margin-bottom:32px}
+label{font:500 11px 'JetBrains Mono',monospace;color:#3a7ca5;letter-spacing:0.1em;
+  display:block;margin-bottom:6px;margin-top:20px}
+textarea,input{width:100%;background:#050a12;border:1px solid #1e3a5f;border-radius:8px;
+  padding:12px 16px;color:#c8d6e5;font:400 13px 'JetBrains Mono',monospace;
+  outline:none;transition:border-color 0.3s;resize:vertical}
+textarea:focus,input:focus{border-color:#00d4ff}
+textarea{min-height:80px}
+button{width:100%;margin-top:28px;padding:14px;background:#00d4ff;color:#050a12;
+  font:600 14px 'JetBrains Mono',monospace;border:none;border-radius:8px;cursor:pointer;
+  transition:all 0.3s;letter-spacing:0.04em}
+button:hover{box-shadow:0 0 30px rgba(0,212,255,0.3);transform:translateY(-1px)}
+button:disabled{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none}
+#result{margin-top:24px;padding:20px;border-radius:10px;display:none;text-align:center;
+  font:600 16px 'JetBrains Mono',monospace}
+#result.valid{display:block;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2);color:#00ff88}
+#result.invalid{display:block;background:rgba(255,51,85,0.06);border:1px solid rgba(255,51,85,0.2);color:#ff3355}
+#result .detail{font:400 11px 'JetBrains Mono',monospace;color:#3a7ca5;margin-top:8px}
+.back{display:inline-block;margin-bottom:24px;font:400 12px 'JetBrains Mono',monospace;
+  color:#3a7ca5;text-decoration:none;transition:color 0.3s}
+.back:hover{color:#00d4ff}
+.or{text-align:center;color:#1e3a5f;font:11px 'JetBrains Mono',monospace;margin:4px 0}
+</style>
+</head><body>
+<div class="card">
+  <a href="/" class="back">&larr; Dashboard</a>
+  <h1>VERIFY SIGNATURE</h1>
+  <p class="sub">Paste a message, its Ed25519 signature, and the signer's public key or DID to verify authenticity.</p>
+
+  <label>MESSAGE</label>
+  <textarea id="msg" placeholder="The original message that was signed"></textarea>
+
+  <label>SIGNATURE (Base64)</label>
+  <input id="sig" placeholder="HkyrXOPOXF7v422A4iOcg/qkg/Juy...">
+
+  <label>PUBLIC KEY (Base64)</label>
+  <input id="pk" placeholder="KGC0lHB6Cwhhg1kyEjrPk0EjUujIO+Wq...">
+  <div class="or">— or —</div>
+  <label>DID</label>
+  <input id="did" placeholder="did:msig:3icqQkmJWby4S5rpa...">
+
+  <button onclick="doVerify()">VERIFY SIGNATURE</button>
+
+  <div id="result">
+    <div id="result-text"></div>
+    <div class="detail" id="result-detail"></div>
+  </div>
+</div>
+<script>
+async function doVerify(){
+  const msg=document.getElementById('msg').value.trim();
+  const sig=document.getElementById('sig').value.trim();
+  const pk=document.getElementById('pk').value.trim();
+  const did=document.getElementById('did').value.trim();
+  const r=document.getElementById('result');
+  const rt=document.getElementById('result-text');
+  const rd=document.getElementById('result-detail');
+
+  if(!msg||!sig||(!pk&&!did)){r.className='invalid';r.style.display='block';rt.textContent='Fill all fields';return}
+
+  const body={message:msg,signature:sig};
+  if(did)body.did=did; else body.publicKey=pk;
+
+  try{
+    const res=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json();
+    if(data.valid){
+      r.className='valid';rt.textContent='\\u2713 SIGNATURE VALID';
+      rd.textContent='Verified at '+data.verifiedAt+' \\u2014 Signer: '+(data.signer||'').slice(0,40)+'...';
+    } else {
+      r.className='invalid';rt.textContent='\\u2717 SIGNATURE INVALID';
+      rd.textContent='The signature does not match the message and key provided.';
+    }
+  }catch(e){r.className='invalid';rt.textContent='Error: '+e.message;rd.textContent=''}
+}
+</script>
+</body></html>`;
   }
 }
