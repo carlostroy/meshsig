@@ -8,10 +8,28 @@
     "meshsig": "dist/main.js"
   },
   "license": "MIT",
+  "keywords": [
+    "ai-agents", "cryptography", "ed25519", "digital-signatures",
+    "identity", "did", "security", "trust", "openclaw", "mesh",
+    "agent-security", "w3c-did", "audit", "compliance"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/carlostroy/meshsig.git"
+  },
+  "homepage": "https://meshsig.ai",
+  "author": "MeshSig",
+  "files": [
+    "dist/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc && cp src/dashboard.html dist/",
     "start": "node dist/main.js",
     "demo": "node dist/main.js start --demo",
+    "prepublishOnly": "npm run build",
     "test": "tsc && node --test dist/**/*.test.js"
   },
   "dependencies": {

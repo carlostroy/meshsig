@@ -1,21 +1,28 @@
 <p align="center">
+  <img src="assets/logo.svg" width="280" alt="MeshSig Logo">
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Ed25519-Cryptographic_Identity-00d4ff?style=for-the-badge" />
   <img src="https://img.shields.io/badge/W3C-DID_Standard-8b5cf6?style=for-the-badge" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/npm-meshsig-f0b429?style=for-the-badge" />
 </p>
 
 <h1 align="center">MeshSig</h1>
 
 <p align="center">
   <strong>Cryptographic security layer for AI agents.</strong><br>
-  <em>Identity · Verification · Signed Communication · Trust</em>
+  <em>Identity · Signed Messages · Verified Handshakes · Trust Scoring</em>
 </p>
 
 <p align="center">
   <a href="https://meshsig.ai">meshsig.ai</a> ·
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#openclaw-integration">OpenClaw Integration</a> ·
-  <a href="#api-reference">API</a>
+  <a href="#cli">CLI</a> ·
+  <a href="#dashboard">Dashboard</a> ·
+  <a href="#openclaw-integration">OpenClaw</a> ·
+  <a href="#api-reference">API</a> ·
+  <a href="#audit--compliance">Audit</a>
 </p>
 
 ---
@@ -32,38 +39,111 @@ When Agent A sends a task to Agent B, MeshSig:
 
 No one can impersonate an agent. No one can tamper with a message. Every interaction has cryptographic proof.
 
-## Why It Matters
-
-AI agents are being deployed in production — handling customer data, executing transactions, making decisions. But there's no standard way to:
-
-- **Prove** which agent sent a message
-- **Verify** that a message wasn't tampered with
-- **Audit** what happened and who did it
-- **Trust** an agent based on its real track record
-
-MeshSig solves all four. Same cryptography behind SSH, Signal, and WireGuard — applied to AI agent communication.
-
 ## Quick Start
 
 ```bash
 git clone https://github.com/carlostroy/meshsig.git
 cd meshsig
-npm install
-npm run build
-node dist/main.js start --port 4888
+npm install && npm run build
+node dist/main.js start
 ```
 
-Open `http://localhost:4888` for the live dashboard.
+Open `http://localhost:4888` — live security operations dashboard.
+
+## CLI
+
+MeshSig works as a standalone command-line tool. No server required for signing and verifying.
+
+```bash
+# Generate your Ed25519 identity
+meshsig init
+# ✓ Identity generated
+#   DID: did:msig:3icqQkmJWby4S5rpaSRoCcKvjKWdTvqViyPrCEC7Tek2
+
+# Sign a message
+meshsig sign "Deploy the new model to production"
+# ✓ Message signed
+#   SIGNATURE: HkyrXOPOXF7v422A4iOcg/qkg...
+
+# Verify a signature (with DID or public key)
+meshsig verify "Deploy the new model" "HkyrXO..." "did:msig:3icq..."
+# ✓ SIGNATURE VALID
+
+# Show your identity
+meshsig identity
+
+# List agents on the mesh
+meshsig agents
+
+# Server statistics
+meshsig stats
+
+# Export audit log
+meshsig audit --json > report.json
+
+# Start the server
+meshsig start --port 4888
+```
+
+All commands support `--json` for piping and automation.
+
+## Dashboard
+
+Real-time security operations center showing agents, connections, trust scores, and signed messages flowing through the network.
+
+```bash
+meshsig start --port 4888
+# Open http://localhost:4888
+```
+
+Features:
+- Live network graph with D3.js force simulation
+- Flowing particles on connections between agents
+- Sound notifications on message signing
+- Agent stats: trust scores, interactions, capabilities
+- Local and remote agent distinction
+- Event feed with signature verification status
+
+## Audit & Compliance
+
+Every signed message is logged with cryptographic proof. Export the complete audit trail for compliance.
+
+**API endpoint:**
+```bash
+curl http://localhost:4888/audit/export
+```
+
+Returns JSON with:
+- Summary (total agents, messages, verified/failed counts, average trust)
+- All agents with DIDs, public keys, trust scores
+- All connections with handshake proof
+- All messages with signatures and verification status
+
+**CLI:**
+```bash
+meshsig audit --json > audit-2026-03.json
+```
+
+## Public Signature Verifier
+
+Anyone can verify a signature in the browser — no account, no install needed.
+
+Open `http://localhost:4888/verify`, paste a message, signature, and public key or DID. One click verification.
+
+**API:**
+```bash
+curl -X POST http://localhost:4888/verify \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"hello","signature":"base64...","did":"did:msig:..."}'
+# {"valid": true, "verifiedAt": "2026-03-13T..."}
+```
 
 ## OpenClaw Integration
 
-MeshSig integrates natively with [OpenClaw](https://openclaw.com) — the open-source AI agent framework. One install secures all agent-to-agent delegations with cryptographic signatures.
-
-### Install
+MeshSig integrates natively with [OpenClaw](https://openclaw.com). One install secures all agent-to-agent delegations with cryptographic signatures.
 
 ```bash
 # With MeshSig running on the same server as OpenClaw:
-cd /path/to/meshsig
 bash scripts/install.sh
 ```
 
@@ -73,27 +153,20 @@ The install script automatically:
 3. Creates verified connections via cryptographic handshake
 4. Replaces `invoke.sh` with a signed version (original backed up)
 
-After install, every delegation between agents is automatically signed, verified, and logged. No code changes needed.
-
-### What Changes
-
 ```
-Before MeshSig:
-  Agent A → invoke.sh → Agent B
-  (no proof of who sent what)
-
-After MeshSig:
-  Agent A → invoke-mesh.sh → [SIGN] → MeshSig → [VERIFY + LOG] → Agent B
-  (cryptographic proof on every message)
+Before:  Agent A → invoke.sh → Agent B  (no proof)
+After:   Agent A → invoke.sh → [SIGN] → MeshSig → [VERIFY] → Agent B
 ```
 
-### Uninstall
+### Auto-register new agents
 
 ```bash
-bash scripts/uninstall.sh
-```
+# When a new agent is provisioned:
+bash scripts/register-agent.sh agent-name-here
 
-Restores original `invoke.sh` files. No data lost.
+# When an agent is removed:
+bash scripts/unregister-agent.sh agent-name-here
+```
 
 ## How It Works
 
@@ -117,28 +190,16 @@ Every message carries a digital signature:
   "to": "did:msig:8GkC...",
   "message": "Analyze the Q1 sales report",
   "signature": "LsBbF/FRgaacn1jIMBwK6hxr22jCT...",
-  "verified": true,
-  "timestamp": "2026-03-12T19:31:33.808Z"
+  "verified": true
 }
 ```
-
-Anyone can verify the signature against the sender's public key. If one character of the message was changed, verification fails.
 
 ### Trust Scoring
 
 Trust is earned, not declared:
 - Every verified message: trust increases
 - Every failed verification: trust decreases
-- Trust is per-agent and per-connection
 - Based on real interactions, not self-assessment
-
-### Live Dashboard
-
-Browser-based real-time visualization:
-- Agent network graph (D3.js force simulation)
-- Connections with trust indicators
-- Messages flowing between agents
-- Event log with signatures
 
 ### Multi-Server Networking
 
@@ -146,21 +207,24 @@ Connect MeshSig instances across servers:
 
 ```bash
 # Server 1
-node dist/main.js start --port 4888
+meshsig start --port 4888
 
-# Server 2 — connects to Server 1
-node dist/main.js start --port 4888 --peer ws://server1:4888
+# Server 2 — connects to Server 1, agents sync automatically
+meshsig start --port 4888 --peer ws://server1:4888
 ```
 
-Agents on different servers discover each other automatically.
+Remote agents appear on the dashboard with origin labels.
 
 ## API Reference
 
 ```
-GET  /                  Live dashboard
+GET  /                  Live dashboard (Security Operations Center)
 GET  /health            Server status
 GET  /stats             Network statistics
 GET  /snapshot          Full network state
+GET  /verify            Public signature verifier (browser)
+POST /verify            Verify a signature (API)
+GET  /audit/export      Compliance audit report (JSON)
 
 POST /agents/register   Register agent → returns Ed25519 keypair + DID
 GET  /agents            List all agents with trust scores
@@ -170,7 +234,7 @@ POST /discover          Find agents by capability
 POST /discover/network  Find across connected peers
 
 POST /messages/send     Sign + verify + log a message
-POST /messages/verify   Verify a signature
+POST /messages/verify   Verify a message signature
 
 POST /handshake         Cryptographic handshake between agents
 GET  /connections       List verified connections
@@ -189,7 +253,7 @@ WS   ws://host:port     Live event stream
 | Signatures | Ed25519 — same as SSH, Signal, WireGuard, TLS 1.3 |
 | Identity | W3C DID standard (`did:msig:`) |
 | Handshake | Mutual challenge-response with nonce and timestamp |
-| Storage | Local SQLite — no cloud dependency, data stays on your machine |
+| Storage | Local SQLite — no cloud dependency |
 | Audit | Tamper-evident log with cryptographic hashes |
 
 See [docs/SECURITY.md](docs/SECURITY.md) for the full security whitepaper.
@@ -208,5 +272,5 @@ MIT
 
 <p align="center">
   <strong>MeshSig</strong> — Cryptographic security layer for AI agents.<br>
-  <a href="https://meshsig.ai">meshsig.ai</a>
+  <a href="https://meshsig.ai">meshsig.ai</a> · <a href="https://github.com/carlostroy/meshsig">GitHub</a>
 </p>
