@@ -1,0 +1,16 @@
+[Unit]
+Description=MeshSig Agent Auto-Discovery
+After=meshsig.service
+Requires=meshsig.service
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /opt/meshsig/scripts/watch-agents.sh
+Restart=always
+RestartSec=10
+Environment=MESHSIG_URL=http://localhost:4888
+Environment=CLIENTS_DIR=/root/clients
+Environment=WATCH_INTERVAL=30
+
+[Install]
+WantedBy=multi-user.target
