@@ -582,18 +582,17 @@ export class MeshServer {
       }
     }
 
-    // Broadcast to dashboard
+    // Broadcast to dashboard (same format as message:sent)
     this._broadcast({
-      type: verified ? 'message:signed' : 'proxy:forwarded',
+      type: 'message:sent',
       timestamp: new Date().toISOString(),
       data: {
-        from: callerName,
-        to: targetName,
-        fromDid: callerDid,
-        toDid: targetDid,
-        message: message.slice(0, 200),
-        signed: verified,
-        signature: signature.slice(0, 20) + '...',
+        from: { did: callerDid || '', name: callerName, trustScore: 0 },
+        to: { did: targetDid || '', name: targetName },
+        preview: message.slice(0, 200),
+        verified,
+        signature: signature.slice(0, 40),
+        proxy: true,
       },
     });
 
