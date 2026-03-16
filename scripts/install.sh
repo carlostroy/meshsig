@@ -11,9 +11,25 @@
 
 set -e
 
-MESH_URL="${MESHSIG_URL:-http://127.0.0.1:4888}"
+MESH_URL="${MESHSIG_URL:-}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 IDENTITY_DIR="/opt/meshsig/identities"
+
+# Auto-detect MeshSig port
+if [ -z "$MESH_URL" ]; then
+  for port in 4888 3001 3002 8888; do
+    if curl -s "http://127.0.0.1:$port/health" 2>/dev/null | grep -q "ok"; then
+      MESH_URL="http://127.0.0.1:$port"
+      break
+    fi
+  done
+fi
+if [ -z "$MESH_URL" ]; then
+  echo -e "\n  ${Y}▲${R} MeshSig not found on any port"
+  echo -e "    Start: meshsig start &"
+  echo -e "    Or set: MESHSIG_URL=http://host:port bash install.sh\n"
+  exit 1
+fi
 
 C='\033[36m'   # cyan
 G='\033[32m'   # green

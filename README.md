@@ -58,35 +58,32 @@ meshsig start
 
 ## Proxy Mode (Recommended)
 
-MeshSig can run as a **transparent proxy** in front of any agent gateway. Every agent-to-agent message is automatically intercepted, signed, and forwarded — **zero changes to your agents**.
+MeshSig can transparently intercept all agent-to-agent traffic. **Zero changes to your agents or gateway.**
 
 ```bash
-# Start MeshSig as proxy in front of your gateway on port 3001
-meshsig start --gateway http://localhost:3001
-
-# That's it. Point your agents to MeshSig instead of the gateway.
-# Every delegation is now cryptographically signed.
+# One command. Your agents keep calling the same port.
+bash scripts/deploy-proxy.sh 3001
 ```
+
+That's it. MeshSig intercepts traffic to port 3001, signs every message with Ed25519, and forwards it to the real gateway. Your agents don't know MeshSig exists.
 
 **How it works:**
 
 ```
 WITHOUT MESHSIG:
-  Agent → curl localhost:3001/invoke-agent → Gateway → executes
+  Agent → localhost:3001 → Gateway → executes
 
 WITH MESHSIG:
-  Agent → curl localhost:4888/invoke-agent → MeshSig [SIGN] → Gateway:3001 → executes
-                                                ↓
-                                          Dashboard shows
-                                          SIGNED ✓
+  Agent → localhost:3001 → [iptables] → MeshSig:4888 [SIGN ✓] → Gateway:3001 → executes
+                                              ↓
+                                        Dashboard + Audit
 ```
 
-The agent doesn't know MeshSig exists. It sends requests like normal. MeshSig intercepts, signs with Ed25519, logs to the audit trail, broadcasts to the dashboard, and forwards to the real gateway.
+Uses iptables to redirect traffic transparently. No port changes. No config changes. Works with any framework — OpenClaw, LangChain, CrewAI, AutoGen, or any HTTP-based agent system.
 
-**For OpenClaw:**
+**To remove:**
 ```bash
-meshsig start --gateway http://localhost:3001
-bash scripts/install.sh   # Register agents + create identities
+bash scripts/deploy-proxy.sh --remove 3001
 ```
 
 **Or from source:**

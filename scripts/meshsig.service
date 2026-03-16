@@ -4,7 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/node /opt/meshsig/dist/main.js start --no-terminal --gateway http://127.0.0.1:3001
+# Standalone: dashboard + API on port 4888
+# Proxy mode: add --gateway http://localhost:YOUR_GATEWAY_PORT
+# and set MESH_PORT to the port your agents call
+ExecStart=/usr/bin/node /opt/meshsig/dist/main.js start --no-terminal
 Restart=always
 RestartSec=5
 Environment=MESH_PORT=4888

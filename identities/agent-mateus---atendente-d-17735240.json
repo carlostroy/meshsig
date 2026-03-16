@@ -1,7 +1,7 @@
 {
-  "did": "did:msig:Asbcm4z4A15t6JhD74MVm1XsXUfmShtkPnxR1Mui4Ner",
-  "privateKey": "aKmiEtm4TFAbN1n2m8SPXs/et+spGhN5mRafNWA/YRk=",
-  "publicKey": "kq9dJRKspp7YkpEIYyjbTQuh8tjbFrYw5PE5JcHNRg8=",
+  "did": "did:msig:F9Dy1a7Yp4kcZt5ybX4tvoFjqC9wqTCDtrLC4rwfGYZe",
+  "privateKey": "09yDvNdlKWACpMLdfskeDLlznFS2EMuWfyHdPENRbUI=",
+  "publicKey": "0h7sfYjtFOwSZw3mYYg5ToY4Q2yTn1DlQrpZa9O1Dfk=",
   "displayName": "Mateus",
   "clientName": "agent-mateus---atendente-d-17735240"
 }
