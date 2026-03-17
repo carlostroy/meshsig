@@ -212,10 +212,10 @@ function drawTV(gx,gy){box(gx,gy,0.08,2.5,20,'#222','#1a1a1a','#282828');const s
 
 function allFurniture(){const it=[];
 [[1,1.5],[3,1.5],[5,1.5],[1,4],[3,4],[5,4]].forEach(d=>it.push({y:d[1],f:()=>drawDesk(d[0],d[1])}));
-[[1.3,2.5],[3.3,2.5],[5.3,2.5],[1.3,5],[3.3,5],[5.3,5]].forEach(d=>it.push({y:d[1],f:()=>drawChair(d[0],d[1],'#333','up')}));
+[[1.3,2.2],[3.3,2.2],[5.3,2.2],[1.3,4.7],[3.3,4.7],[5.3,4.7]].forEach(d=>it.push({y:d[1],f:()=>drawChair(d[0],d[1],'#333','up')}));
 it.push({y:0.3,f:()=>drawPlant(0.3,0.3)},{y:0.3,f:()=>drawPlant(9,0.3)},{y:0.5,f:()=>drawWhiteboard(9,1)},{y:6,f:()=>drawCooler(8,6)});
 [[11.5,1.5],[13.5,1.5],[15.5,1.5],[11.5,4],[13.5,4],[15.5,4]].forEach(d=>it.push({y:d[1],f:()=>drawDesk(d[0],d[1])}));
-[[11.8,2.5],[13.8,2.5],[15.8,2.5],[11.8,5],[13.8,5],[15.8,5]].forEach(d=>it.push({y:d[1],f:()=>drawChair(d[0],d[1],'#333','up')}));
+[[11.8,2.2],[13.8,2.2],[15.8,2.2],[11.8,4.7],[13.8,4.7],[15.8,4.7]].forEach(d=>it.push({y:d[1],f:()=>drawChair(d[0],d[1],'#333','up')}));
 it.push({y:0.3,f:()=>drawPlant(19,0.3)},{y:1,f:()=>drawWhiteboard(18.5,1)},{y:6,f:()=>drawCooler(18,6)});
 it.push({y:9.5,f:()=>drawLongTable(0.5,9.5,5)});
 [[0.5,9],[1.5,9],[2.5,9],[3.5,9],[4.5,9]].forEach(d=>it.push({y:d[1],f:()=>drawChair(d[0],d[1],'#2c3e50','down')}));
@@ -251,26 +251,20 @@ function buildPath(a,dz){if(a.zone===dz)return interp({x:a.x,y:a.y},ZONE_PTS[dz]
 function assignWalk(a){let d=DEST[Math.floor(Math.random()*DEST.length)];if(d===a.zone)d=DEST[(DEST.indexOf(d)+1)%DEST.length];a.path=buildPath(a,d);a.pi=0;a.st=Date.now();a._nz=d}
 
 function syncAgentChars(){
-  // Desk positions: where each agent sits (chair coords)
-  const DESK_SEATS=[
-    {zone:'mgmt',x:1.3,y:2.5},   // mgmt desk 1
-    {zone:'mgmt',x:3.3,y:2.5},   // mgmt desk 2
-    {zone:'mgmt',x:5.3,y:2.5},   // mgmt desk 3
-    {zone:'support',x:8.8,y:2.5},  // support desk 1
-    {zone:'support',x:10.8,y:2.5}, // support desk 2
-    {zone:'support',x:12.8,y:2.5}, // support desk 3
-  ];
-  let seatIdx=0;
+  // Each desk has a specific seat position (where agent sits)
+  const MGMT_SEATS=[{x:1.3,y:2.2},{x:3.3,y:2.2},{x:5.3,y:2.2},{x:1.3,y:4.7},{x:3.3,y:4.7},{x:5.3,y:4.7}];
+  const SUPPORT_SEATS=[{x:11.8,y:2.2},{x:13.8,y:2.2},{x:15.8,y:2.2},{x:11.8,y:4.7},{x:13.8,y:4.7},{x:15.8,y:4.7}];
+  let mgmtIdx=0,supportIdx=0;
   agents.forEach((a,i)=>{
     let c=agentChars.find(x=>x.did===a.did);
     if(!c){
       const caps=(a.capabilities||[]).map(x=>x.type);
       const isManager=caps.includes('management')||caps.includes('delegation');
-      // Find next available seat in correct zone
-      const seat=DESK_SEATS.find((s,si)=>si>=seatIdx&&(isManager?s.zone==='mgmt':s.zone==='support'))||DESK_SEATS[seatIdx]||DESK_SEATS[0];
-      seatIdx++;
+      let seat,zone;
+      if(isManager){seat=MGMT_SEATS[mgmtIdx++]||MGMT_SEATS[0];zone='mgmt'}
+      else{seat=SUPPORT_SEATS[supportIdx++]||SUPPORT_SEATS[0];zone='support'}
       c={did:a.did,name:a.displayName,color:COLORS[i%COLORS.length],lc:DARK_COLORS[i%DARK_COLORS.length],hair:HAIRS[i%HAIRS.length],
-        role:caps.join(', '),zone:seat.zone,home:{x:seat.x,y:seat.y},x:seat.x,y:seat.y,
+        role:caps.join(', '),zone,home:{x:seat.x,y:seat.y},x:seat.x,y:seat.y,
         path:[],pi:0,st:0,si:100+i*10,idle:Date.now()+99999,glow:false};
       agentChars.push(c);
     }
