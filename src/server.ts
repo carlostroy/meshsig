@@ -608,6 +608,33 @@ export class MeshServer {
       });
       const gwData = await gwRes.json() as any;
       
+      // Broadcast response from target agent
+      try {
+        const responseText = gwData?.response?.result?.payloads?.[0]?.text 
+          || gwData?.result?.payloads?.[0]?.text
+          || gwData?.response?.summary
+          || '';
+        if (responseText) {
+          this._broadcast({
+            type: 'message:sent',
+            timestamp: new Date().toISOString(),
+            data: {
+              from: { did: targetDid || '', name: targetName, trustScore: 0 },
+              to: { did: callerDid || '', name: callerName },
+              preview: responseText.slice(0, 200),
+              verified: true,
+              signature: 'response',
+              proxy: true,
+              isResponse: true,
+            },
+          });
+          // Log the response too
+          if (targetDid && callerDid) {
+            this.registry.logMessage(targetDid, callerDid, responseText, 'response', true);
+          }
+        }
+      } catch {}
+
       // Add meshsig metadata to response
       gwData._meshsig = {
         signed: verified,

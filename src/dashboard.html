@@ -252,11 +252,20 @@ X.fillStyle='#1a1a1a';X.beginPath();X.arc(px-3,py-28-bob,2,0,Math.PI*2);X.fill()
 X.fillStyle='#fff';X.beginPath();X.arc(px-2.3,py-28.5-bob,0.7,0,Math.PI*2);X.fill();X.beginPath();X.arc(px+3.7,py-28.5-bob,0.7,0,Math.PI*2);X.fill();
 X.strokeStyle='#8a5a3a';X.lineWidth=1.2;X.beginPath();X.arc(px,py-24.5-bob,3.5,0.2,Math.PI-0.2);X.stroke();
 X.fillStyle=a.hair;X.fillRect(px-9,py-38-bob,18,5);X.fillRect(px-9,py-35-bob,3,6);X.fillRect(px+6,py-35-bob,3,6);
-X.font='bold 10px "Courier New"';X.textAlign='center';const tw=X.measureText(a.name).width,tagW=tw+18;
-X.fillStyle='rgba(0,0,0,0.8)';X.beginPath();X.roundRect(px-tagW/2,py+12-bob,tagW,18,4);X.fill();
-X.strokeStyle=a.color;X.lineWidth=1.5;X.globalAlpha=0.7;X.beginPath();X.roundRect(px-tagW/2,py+12-bob,tagW,18,4);X.stroke();X.globalAlpha=1;
-X.fillStyle='#fff';X.fillText(a.name,px,py+24-bob);X.fillStyle='#2ecc71';X.beginPath();X.arc(px+tw/2+11,py+21-bob,3,0,Math.PI*2);X.fill();
-X.font='bold 7px "Courier New"';X.fillStyle=a.color;X.globalAlpha=0.7;X.fillText(a.role,px,py+36-bob);X.globalAlpha=1}
+X.font='bold 10px "Courier New"';X.textAlign='center';const tw=X.measureText(a.name).width,tagW=tw+22;
+// Name plate ABOVE head
+const ny=py-48-bob;
+X.fillStyle='rgba(0,0,0,0.85)';X.beginPath();X.roundRect(px-tagW/2,ny-10,tagW,28,5);X.fill();
+X.strokeStyle=a.color;X.lineWidth=2;X.globalAlpha=0.8;X.beginPath();X.roundRect(px-tagW/2,ny-10,tagW,28,5);X.stroke();X.globalAlpha=1;
+// Pointer triangle down
+X.fillStyle='rgba(0,0,0,0.85)';X.beginPath();X.moveTo(px-5,ny+18);X.lineTo(px+5,ny+18);X.lineTo(px,ny+24);X.closePath();X.fill();
+// Name
+X.fillStyle='#fff';X.font='bold 11px "Courier New"';X.fillText(a.name,px,ny+3);
+// Online dot
+X.fillStyle='#2ecc71';X.beginPath();X.arc(px+tw/2+13,ny,4,0,Math.PI*2);X.fill();
+X.strokeStyle='#2ecc71';X.globalAlpha=0.3;X.lineWidth=2;X.beginPath();X.arc(px+tw/2+13,ny,6,0,Math.PI*2);X.stroke();X.globalAlpha=1;
+// Role below name
+X.font='bold 8px "Courier New"';X.fillStyle=a.color;X.fillText(a.role,px,ny+13)}
 
 // Particles
 const particles=[];
