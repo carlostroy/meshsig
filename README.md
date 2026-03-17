@@ -144,20 +144,27 @@ All commands support `--json` for piping and automation.
 
 ## Dashboard
 
-Real-time security operations center showing agents, connections, trust scores, and signed messages flowing through the network.
+Real-time isometric 3D office where your AI agents live and work. Watch them walk between desks, exchange signed messages, and collaborate — all cryptographically verified.
 
 ```bash
 meshsig start --port 4888
 # Open http://localhost:4888
 ```
 
-Features:
-- Live network graph with D3.js force simulation
-- Flowing particles on connections between agents
-- Sound notifications on message signing
-- Agent stats: trust scores, interactions, capabilities
-- Local and remote agent distinction
-- Event feed with signature verification status
+**HQ Office** — Isometric 3D workspace with:
+- LEGO-style animated agents seated at their desks
+- Agents walk to each other when delegating tasks
+- Golden message particles with preview text traveling between agents
+- Glow effects on sending/receiving agents
+- Drag to pan, scroll to zoom, fully interactive
+- Open-plan office with Management, Support, Meeting Room, Break Room, Ops Center
+- 3D furniture: desks with laptops, office chairs, sofas, server racks, coffee machine, vending machine, whiteboards
+
+**Other pages:**
+- **Agents** — Cards with DID, trust score, capabilities, status
+- **Messages** — Full message log with signature verification
+- **Audit Report** — Summary stats with JSON export
+- **Verify Signature** — Paste message + signature to verify manually
 
 ## Audit & Compliance
 

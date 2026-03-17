@@ -1,6 +1,6 @@
 # MeshSig Security Whitepaper
 
-**Version 0.9 — March 2026**
+**Version 0.10 — March 2026**
 **Status:** Living document — updated as the protocol evolves.
 
 ---
@@ -460,6 +460,43 @@ The entire MeshSig codebase is open source under MIT license. Any cryptographer,
 | Transport encryption | 3 | Optional end-to-end encrypted messaging |
 | Post-quantum readiness | Future | Algorithm agility in DID system |
 | Formal verification | Future | Machine-checked proofs of protocol properties |
+
+---
+
+## Transparent Proxy Mode
+
+MeshSig v0.10 introduces **transparent proxy interception** via iptables. This allows MeshSig to sign every agent-to-agent delegation without any changes to the agents or their gateway.
+
+### Architecture
+
+The proxy uses Linux iptables to redirect traffic at the kernel level:
+
+1. MeshSig runs as a dedicated system user (`meshsig`) on port 4888
+2. An iptables NAT rule redirects all local traffic to the gateway port (e.g. 3001) through MeshSig
+3. MeshSig intercepts `/invoke-agent` and `/invoke-team` requests
+4. Extracts caller identity, signs the delegation with Ed25519
+5. Logs to audit trail, broadcasts to dashboard
+6. Forwards the signed request to the real gateway
+7. Intercepts the response and broadcasts it back to the dashboard
+
+The iptables rule excludes the `meshsig` user to prevent redirect loops:
+
+```
+iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 3001 \
+  -m owner ! --uid-owner meshsig -j REDIRECT --to-port 4888
+```
+
+### Security Properties
+
+- **Zero-knowledge to agents**: Agents are unaware MeshSig exists. They call the same port as before.
+- **Kernel-level interception**: Traffic redirect happens in the Linux kernel, not in userspace.
+- **User isolation**: MeshSig runs as a dedicated system user, preventing redirect loops.
+- **Bidirectional logging**: Both the request (Agent A → Agent B) and the response (Agent B → Agent A) are cryptographically logged.
+- **Non-invasive**: No port changes, no config changes, no agent modifications required.
+
+### Dashboard
+
+The v0.10 dashboard features an isometric 3D office visualization where agents appear as animated LEGO-style characters. When a signed delegation occurs, the sending agent walks toward the receiver, a golden particle travels between them with message preview, and the event is logged in the live security feed. The dashboard supports pan (drag) and zoom (scroll) for interactive exploration.
 
 ---
 
