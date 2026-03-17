@@ -4,239 +4,109 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MeshSig — Security Operations</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#020810;--bg2:#06101e;--bg3:#0a1830;--cyan:#00e5ff;--blue:#0066ff;--green:#00ff9d;
-  --amber:#ffb300;--red:#ff2952;--purple:#a855f7;--text:#e8f4ff;--muted:#5eaed6;--dim:#2a5580;--border:#0c1e38;
-  --mono:'JetBrains Mono',monospace;--sans:'Outfit',sans-serif;
-  --glow-cyan:0 0 20px rgba(0,229,255,0.3),0 0 40px rgba(0,229,255,0.1);
-  --glow-green:0 0 20px rgba(0,255,157,0.3),0 0 40px rgba(0,255,157,0.1)}
+:root{--bg:#020810;--bg2:#06101e;--cyan:#00e5ff;--green:#00ff9d;--amber:#ffb300;--red:#ff2952;--purple:#a855f7;
+  --text:#e8f4ff;--muted:#5eaed6;--dim:#2a5580;--border:#0c1e38;
+  --mono:'JetBrains Mono',monospace;--sans:'Outfit',sans-serif}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);height:100vh;overflow:hidden;display:flex}
-
-/* Scan line */
-body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;
-  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
-  animation:scanline 4s linear infinite;z-index:1000;opacity:0.4;pointer-events:none}
-@keyframes scanline{0%{top:0}100%{top:100vh}}
-
-/* CRT overlay */
-body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;
-  background:repeating-linear-gradient(0deg,rgba(0,0,0,0.03) 0px,rgba(0,0,0,0.03) 1px,transparent 1px,transparent 3px);
-  pointer-events:none;z-index:999}
-
-/* -- Sidebar ------------------------------------------------------------ */
-#sidebar{width:220px;height:100vh;background:var(--bg2);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;flex-shrink:0;z-index:50;
-  box-shadow:1px 0 30px rgba(0,229,255,0.03)}
-.sb-logo{padding:20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);
-  background:linear-gradient(180deg,rgba(0,229,255,0.02),transparent)}
-.sb-logo h1{font:700 15px var(--mono);color:var(--cyan);letter-spacing:0.05em;
-  text-shadow:0 0 10px rgba(0,229,255,0.3)}
-.sb-logo .tag{font:400 9px var(--mono);color:var(--green);letter-spacing:0.15em;
-  text-shadow:0 0 8px rgba(0,255,157,0.2)}
-.sb-nav{flex:1;padding:12px 0;overflow-y:auto}
-.sb-item{display:flex;align-items:center;gap:12px;padding:10px 20px;cursor:pointer;
-  font:500 13px var(--sans);color:var(--muted);transition:all 0.3s;border-left:3px solid transparent;
-  user-select:none;position:relative}
-.sb-item:hover{background:rgba(0,229,255,0.04);color:var(--text);
-  text-shadow:0 0 8px rgba(0,229,255,0.2)}
-.sb-item.active{color:var(--cyan);background:rgba(0,229,255,0.08);border-left-color:var(--cyan);
-  text-shadow:0 0 12px rgba(0,229,255,0.4)}
-.sb-item.active::after{content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);
-  width:2px;height:60%;background:var(--cyan);box-shadow:var(--glow-cyan);border-radius:1px}
-.sb-item .icon{width:18px;text-align:center;font:500 14px var(--mono);flex-shrink:0}
+body::before{content:'';position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);animation:scan 4s linear infinite;z-index:1000;opacity:0.3;pointer-events:none}
+@keyframes scan{0%{top:0}100%{top:100vh}}
+#sidebar{width:220px;height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;z-index:50}
+.sb-logo{padding:20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.sb-logo h1{font:700 15px var(--mono);color:var(--cyan);text-shadow:0 0 10px rgba(0,229,255,0.3)}
+.sb-logo .tag{font:400 9px var(--mono);color:var(--green);letter-spacing:0.15em}
+.sb-nav{flex:1;padding:12px 0}
+.sb-item{display:flex;align-items:center;gap:12px;padding:10px 20px;cursor:pointer;font:500 13px var(--sans);color:var(--muted);transition:all 0.3s;border-left:3px solid transparent;user-select:none}
+.sb-item:hover{background:rgba(0,229,255,0.04);color:var(--text)}
+.sb-item.active{color:var(--cyan);background:rgba(0,229,255,0.08);border-left-color:var(--cyan)}
+.sb-item .icon{width:18px;text-align:center;font:500 14px var(--mono)}
 .sb-section{font:600 9px var(--mono);color:var(--muted);letter-spacing:0.15em;padding:16px 20px 6px}
 .sb-stats{padding:16px 20px;border-top:1px solid var(--border);margin-top:auto}
 .sb-stat{display:flex;justify-content:space-between;margin-bottom:6px}
-.sb-stat .label{font:400 10px var(--mono);color:var(--dim);letter-spacing:0.05em}
+.sb-stat .label{font:400 10px var(--mono);color:var(--dim)}
 .sb-stat .value{font:600 11px var(--mono);color:var(--cyan);text-shadow:0 0 8px rgba(0,229,255,0.3)}
-.sb-ws{padding:12px 20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;
-  font:11px var(--mono)}
-.pulse{width:8px;height:8px;border-radius:50%;background:var(--green);
-  box-shadow:0 0 8px var(--green),0 0 16px rgba(0,255,157,0.3);
-  animation:pulse 1.5s infinite}
-.pulse.off{background:var(--red);box-shadow:0 0 8px var(--red),0 0 16px rgba(255,41,82,0.3)}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.8)}}
-
-/* -- Main area ---------------------------------------------------------- */
+.sb-ws{padding:12px 20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;font:11px var(--mono)}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 1.5s infinite}
+.pulse.off{background:var(--red);box-shadow:0 0 8px var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
 #main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden}
-
-/* Top bar */
-#topbar{height:52px;background:rgba(2,8,16,0.98);border-bottom:1px solid rgba(0,229,255,0.08);
-  display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;
-  backdrop-filter:blur(16px);position:relative}
-#topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(0,229,255,0.2),transparent)}
-#page-title{font:600 14px var(--sans);color:#fff;text-shadow:0 0 10px rgba(255,255,255,0.1)}
-#clock{font:500 12px var(--mono);color:var(--cyan);text-shadow:0 0 8px rgba(0,229,255,0.3)}
-
-/* Pages */
-.page{display:none;flex:1;overflow:hidden}
-.page.active{display:flex;flex-direction:column}
-
-/* -- Network Page ------------------------------------------------------- */
-#p-network{position:relative}
-#graph{flex:1;position:relative}
-#graph svg{width:100%;height:100%}
-#events-panel{position:absolute;top:0;right:0;bottom:0;width:380px;
-  background:rgba(2,8,16,0.95);border-left:1px solid rgba(0,229,255,0.1);
-  display:flex;flex-direction:column;backdrop-filter:blur(12px);
-  box-shadow:-4px 0 30px rgba(0,0,0,0.5)}
-#events-header{padding:14px 18px;border-bottom:1px solid rgba(0,229,255,0.08);
-  font:600 10px var(--mono);color:var(--cyan);letter-spacing:0.15em;
-  display:flex;justify-content:space-between;
-  background:linear-gradient(90deg,rgba(0,229,255,0.03),transparent);
-  text-shadow:0 0 10px rgba(0,229,255,0.3)}
-#events-header .count{color:var(--green);font-size:13px;font-weight:700;
-  text-shadow:0 0 10px rgba(0,255,157,0.4)}
-#events{flex:1;overflow-y:auto;padding:0}
+#topbar{height:52px;background:rgba(2,8,16,0.98);border-bottom:1px solid rgba(0,229,255,0.08);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0}
+#page-title{font:600 14px var(--sans);color:#fff}
+#clock{font:500 12px var(--mono);color:var(--cyan)}
+.page{display:none;flex:1;overflow:hidden}.page.active{display:flex;flex-direction:column}
+#p-office{position:relative}
+#office-canvas{flex:1}
+#events-panel{position:absolute;top:0;right:0;bottom:0;width:380px;background:rgba(2,8,16,0.95);border-left:1px solid rgba(0,229,255,0.1);display:flex;flex-direction:column;backdrop-filter:blur(12px)}
+#events-header{padding:14px 18px;border-bottom:1px solid rgba(0,229,255,0.08);font:600 10px var(--mono);color:var(--cyan);letter-spacing:0.15em;display:flex;justify-content:space-between}
+#events-header .count{color:var(--green);font-size:13px;font-weight:700}
+#events{flex:1;overflow-y:auto}
 #events::-webkit-scrollbar{width:3px}
-#events::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.ev{padding:10px 18px;border-bottom:1px solid rgba(0,229,255,0.04);animation:evIn 0.5s ease;font:12px var(--mono);
-  transition:background 0.3s}
-.ev:hover{background:rgba(0,229,255,0.03)}
+#events::-webkit-scrollbar-thumb{background:var(--border)}
+.ev{padding:10px 18px;border-bottom:1px solid rgba(0,229,255,0.04);animation:evIn 0.5s ease;font:12px var(--mono)}
 @keyframes evIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
-.ev .ts{color:var(--dim);font-size:10px}
-.ev .from,.ev .to{color:var(--cyan);font-weight:600;text-shadow:0 0 6px rgba(0,229,255,0.2)}
-.ev .arrow{color:var(--dim);margin:0 4px}
-.ev .badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;margin-left:6px;
-  letter-spacing:0.05em;font-weight:600}
-.ev .badge.ok{background:rgba(0,255,157,0.1);color:var(--green);border:1px solid rgba(0,255,157,0.25);
-  box-shadow:0 0 8px rgba(0,255,157,0.1);text-shadow:0 0 6px rgba(0,255,157,0.3)}
-.ev .badge.fail{background:rgba(255,41,82,0.1);color:var(--red);border:1px solid rgba(255,41,82,0.25);
-  box-shadow:0 0 8px rgba(255,41,82,0.1)}
-.ev .content{display:block;margin-top:5px;padding:6px 12px;
-  background:linear-gradient(90deg,rgba(0,229,255,0.04),transparent);
-  border-left:2px solid rgba(0,229,255,0.3);border-radius:0 4px 4px 0;color:var(--muted);font-size:11px}
-.ev.join{border-left:3px solid var(--green);background:rgba(0,255,157,0.02)}
-.ev.handshake{border-left:3px solid var(--purple);background:rgba(168,85,247,0.02)}
-.ev.message{border-left:3px solid var(--amber);background:rgba(255,179,0,0.02)}
-.ev.system{border-left:3px solid var(--dim)}
-
-/* Tooltip */
-#tip{position:fixed;background:rgba(6,16,30,0.95);border:1px solid rgba(0,229,255,0.2);border-radius:12px;
-  padding:16px 20px;font:12px var(--mono);color:var(--text);pointer-events:none;z-index:100;
-  max-width:320px;display:none;box-shadow:0 8px 40px rgba(0,0,0,0.7),0 0 30px rgba(0,229,255,0.05);
-  backdrop-filter:blur(16px)}
-
-/* Message flash */
-.msg-flash{position:fixed;z-index:15;pointer-events:none;
-  background:rgba(255,179,0,0.1);border:1px solid rgba(255,179,0,0.3);
-  border-radius:8px;padding:6px 12px;max-width:240px;
-  font:10px var(--mono);color:var(--amber);opacity:0;transition:opacity 0.4s;
-  box-shadow:0 0 20px rgba(255,179,0,0.1);text-shadow:0 0 6px rgba(255,179,0,0.3)}
-.msg-flash.show{opacity:1}
-
-/* -- Agents Page -------------------------------------------------------- */
-.agents-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;
-  padding:24px;overflow-y:auto;flex:1}
-.agent-card{background:var(--bg2);border:1px solid rgba(0,229,255,0.1);border-radius:12px;padding:20px;
-  transition:all 0.3s;position:relative;overflow:hidden}
-.agent-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0.3}
-.agent-card:hover{border-color:rgba(0,229,255,0.3);box-shadow:0 0 30px rgba(0,229,255,0.05);
-  transform:translateY(-2px)}
+.ev .ts{color:var(--dim);font-size:10px}.ev .from,.ev .to{color:var(--cyan);font-weight:600}.ev .arrow{color:var(--dim);margin:0 4px}
+.ev .badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;margin-left:6px;font-weight:600}
+.ev .badge.ok{background:rgba(0,255,157,0.1);color:var(--green);border:1px solid rgba(0,255,157,0.25)}
+.ev .badge.fail{background:rgba(255,41,82,0.1);color:var(--red);border:1px solid rgba(255,41,82,0.25)}
+.ev .content{display:block;margin-top:5px;padding:6px 12px;background:linear-gradient(90deg,rgba(0,229,255,0.04),transparent);border-left:2px solid rgba(0,229,255,0.3);border-radius:0 4px 4px 0;color:var(--muted);font-size:11px}
+.ev.join{border-left:3px solid var(--green)}.ev.handshake{border-left:3px solid var(--purple)}.ev.message{border-left:3px solid var(--amber)}.ev.system{border-left:3px solid var(--dim)}
+.agents-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;padding:24px;overflow-y:auto;flex:1}
+.agent-card{background:var(--bg2);border:1px solid rgba(0,229,255,0.1);border-radius:12px;padding:20px;transition:all 0.3s}
+.agent-card:hover{border-color:rgba(0,229,255,0.3);transform:translateY(-2px)}
 .agent-card .ac-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-.agent-card .ac-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.agent-card .ac-dot{width:10px;height:10px;border-radius:50%}
 .agent-card .ac-name{font:600 16px var(--sans);color:#fff}
 .agent-card .ac-did{font:400 10px var(--mono);color:var(--dim);margin-bottom:12px;word-break:break-all}
 .agent-card .ac-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}
-.agent-card .ac-label{color:var(--muted)}
-.agent-card .ac-value{color:var(--text);font:500 13px var(--mono)}
+.agent-card .ac-label{color:var(--muted)}.agent-card .ac-value{color:var(--text);font:500 13px var(--mono)}
 .agent-card .ac-caps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-.agent-card .ac-cap{font:400 10px var(--mono);padding:3px 8px;border-radius:4px;
-  background:rgba(0,212,255,0.06);color:var(--cyan);border:1px solid rgba(0,212,255,0.15)}
-.agent-card .ac-remote{background:rgba(240,180,41,0.06);color:var(--amber);border-color:rgba(240,180,41,0.15)}
-
-/* -- Messages Page ------------------------------------------------------ */
+.agent-card .ac-cap{font:400 10px var(--mono);padding:3px 8px;border-radius:4px;background:rgba(0,229,255,0.06);color:var(--cyan);border:1px solid rgba(0,229,255,0.15)}
 .messages-list{flex:1;overflow-y:auto;padding:24px}
-.msg-row{background:var(--bg2);border:1px solid rgba(0,229,255,0.08);border-radius:10px;padding:16px 20px;
-  margin-bottom:12px;transition:all 0.3s;position:relative;overflow:hidden}
-.msg-row::before{content:'';position:absolute;top:0;left:0;bottom:0;width:1px;
-  background:linear-gradient(180deg,var(--cyan),transparent);opacity:0.3}
-.msg-row:hover{border-color:rgba(0,229,255,0.2);box-shadow:0 0 20px rgba(0,229,255,0.03)}
+.msg-row{background:var(--bg2);border:1px solid rgba(0,229,255,0.08);border-radius:10px;padding:16px 20px;margin-bottom:12px}
 .msg-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.msg-from,.msg-to{font:600 13px var(--mono);color:var(--cyan)}
-.msg-arrow{color:var(--dim);font:13px var(--mono)}
-.msg-time{margin-left:auto;font:400 10px var(--mono);color:var(--dim)}
-.msg-body{font:400 13px var(--mono);color:var(--muted);padding:10px 14px;background:rgba(0,212,255,0.03);
-  border-radius:6px;margin-bottom:8px;border-left:2px solid rgba(0,212,255,0.15)}
+.msg-from,.msg-to{font:600 13px var(--mono);color:var(--cyan)}.msg-arrow{color:var(--dim)}.msg-time{margin-left:auto;font:400 10px var(--mono);color:var(--dim)}
+.msg-body{font:400 13px var(--mono);color:var(--muted);padding:10px 14px;background:rgba(0,229,255,0.03);border-radius:6px;margin-bottom:8px;border-left:2px solid rgba(0,229,255,0.15)}
 .msg-sig{font:400 10px var(--mono);color:var(--dim);word-break:break-all}
 .msg-badge{display:inline-block;padding:2px 8px;border-radius:4px;font:500 10px var(--mono);margin-left:8px}
-.msg-badge.valid{background:rgba(0,255,157,0.1);color:var(--green);border:1px solid rgba(0,255,157,0.25);
-  box-shadow:0 0 8px rgba(0,255,157,0.1);text-shadow:0 0 6px rgba(0,255,157,0.3)}
-.msg-badge.invalid{background:rgba(255,41,82,0.1);color:var(--red);border:1px solid rgba(255,41,82,0.25);
-  box-shadow:0 0 8px rgba(255,41,82,0.1)}
-
-/* -- Audit Page --------------------------------------------------------- */
+.msg-badge.valid{background:rgba(0,255,157,0.1);color:var(--green);border:1px solid rgba(0,255,157,0.25)}
+.msg-badge.invalid{background:rgba(255,41,82,0.1);color:var(--red);border:1px solid rgba(255,41,82,0.25)}
 .audit-content{flex:1;overflow-y:auto;padding:24px}
 .audit-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:32px}
-.audit-card{background:var(--bg2);border:1px solid rgba(0,229,255,0.08);border-radius:10px;padding:16px;text-align:center;
-  transition:all 0.3s;position:relative;overflow:hidden}
-.audit-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0.2}
-.audit-card:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,229,255,0.05)}
-.audit-card .val{font:700 28px var(--mono);color:var(--cyan);text-shadow:0 0 15px rgba(0,229,255,0.3)}
-.audit-card .lbl{font:400 10px var(--mono);color:var(--muted);letter-spacing:0.1em;margin-top:4px}
-.audit-card.green .val{color:var(--green)}
-.audit-card.amber .val{color:var(--amber)}
-.audit-card.red .val{color:var(--red)}
+.audit-card{background:var(--bg2);border:1px solid rgba(0,229,255,0.08);border-radius:10px;padding:16px;text-align:center}
+.audit-card .val{font:700 28px var(--mono);color:var(--cyan)}.audit-card .lbl{font:400 10px var(--mono);color:var(--muted);margin-top:4px}
+.audit-card.green .val{color:var(--green)}.audit-card.amber .val{color:var(--amber)}.audit-card.red .val{color:var(--red)}
 .audit-actions{display:flex;gap:12px;margin-bottom:24px}
-.audit-btn{padding:10px 20px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);
-  color:var(--cyan);font:500 12px var(--mono);border-radius:6px;cursor:pointer;transition:all 0.3s}
-.audit-btn:hover{background:rgba(0,212,255,0.15)}
-.audit-json{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;
-  font:400 11px var(--mono);color:var(--muted);max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
-
-/* -- Verify Page -------------------------------------------------------- */
+.audit-btn{padding:10px 20px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);color:var(--cyan);font:500 12px var(--mono);border-radius:6px;cursor:pointer}
+.audit-json{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;font:400 11px var(--mono);color:var(--muted);max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
 .verify-content{flex:1;overflow-y:auto;display:flex;align-items:center;justify-content:center;padding:40px}
-.verify-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:40px;
-  max-width:560px;width:100%}
-.verify-card h2{font:700 20px var(--mono);color:var(--cyan);margin-bottom:6px;letter-spacing:0.04em}
+.verify-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:40px;max-width:560px;width:100%}
+.verify-card h2{font:700 20px var(--mono);color:var(--cyan);margin-bottom:6px}
 .verify-card .sub{font:300 13px var(--sans);color:var(--muted);margin-bottom:28px}
-.verify-card label{font:500 10px var(--mono);color:var(--muted);letter-spacing:0.1em;display:block;
-  margin-bottom:5px;margin-top:16px}
-.verify-card textarea,.verify-card input{width:100%;background:var(--bg);border:1px solid var(--dim);
-  border-radius:8px;padding:10px 14px;color:var(--text);font:400 12px var(--mono);outline:none;
-  transition:border-color 0.3s;resize:vertical}
-.verify-card textarea:focus,.verify-card input:focus{border-color:var(--cyan)}
+.verify-card label{font:500 10px var(--mono);color:var(--muted);display:block;margin-bottom:5px;margin-top:16px}
+.verify-card textarea,.verify-card input{width:100%;background:var(--bg);border:1px solid var(--dim);border-radius:8px;padding:10px 14px;color:var(--text);font:400 12px var(--mono);outline:none;resize:vertical}
 .verify-card textarea{min-height:70px}
-.verify-card button{width:100%;margin-top:24px;padding:12px;background:var(--cyan);color:var(--bg);
-  font:600 13px var(--mono);border:none;border-radius:8px;cursor:pointer;transition:all 0.3s;letter-spacing:0.04em}
-.verify-card button:hover{box-shadow:0 0 24px rgba(0,212,255,0.3)}
+.verify-card button{width:100%;margin-top:24px;padding:12px;background:var(--cyan);color:var(--bg);font:600 13px var(--mono);border:none;border-radius:8px;cursor:pointer}
 .verify-or{text-align:center;color:var(--dim);font:11px var(--mono);margin:4px 0}
-#verify-result{margin-top:20px;padding:16px;border-radius:8px;display:none;text-align:center;
-  font:600 15px var(--mono)}
+#verify-result{margin-top:20px;padding:16px;border-radius:8px;display:none;text-align:center;font:600 15px var(--mono)}
 #verify-result.valid{display:block;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2);color:var(--green)}
 #verify-result.invalid{display:block;background:rgba(255,51,85,0.06);border:1px solid rgba(255,51,85,0.2);color:var(--red)}
 #verify-result .detail{font:400 10px var(--mono);color:var(--muted);margin-top:6px}
 </style>
 </head>
 <body>
-
-<!-- Sidebar -->
 <div id="sidebar">
   <div class="sb-logo">
-    <svg width="44" height="34" viewBox="0 0 200 160">
-      <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#0088ff"/><stop offset="50%" stop-color="#00d4ff"/><stop offset="100%" stop-color="#0088ff"/></linearGradient></defs>
-      <line x1="55" y1="38" x2="30" y2="80" stroke="#00ff88" stroke-width="0.7" opacity="0.3"/>
-      <line x1="55" y1="38" x2="80" y2="80" stroke="#00ff88" stroke-width="0.7" opacity="0.3"/>
-      <line x1="100" y1="122" x2="80" y2="80" stroke="#00ff88" stroke-width="0.7" opacity="0.3"/>
-      <line x1="100" y1="122" x2="120" y2="80" stroke="#00ff88" stroke-width="0.7" opacity="0.3"/>
-      <line x1="145" y1="38" x2="120" y2="80" stroke="#00ff88" stroke-width="0.7" opacity="0.3"/>
-      <line x1="145" y1="38" x2="170" y2="80" stroke="#00ff88" stroke-width="0.7" opacity="0.3"/>
-      <path d="M30 80 Q55 30 80 80 Q105 130 120 80 Q145 30 170 80" fill="none" stroke="url(#lg)" stroke-width="1.8" stroke-linecap="round"/>
-      <circle cx="30" cy="80" r="7" fill="#0088ff"/><circle cx="80" cy="80" r="8" fill="#00bbff"/>
-      <circle cx="120" cy="80" r="8" fill="#00bbff"/><circle cx="170" cy="80" r="7" fill="#0088ff"/>
-      <circle cx="55" cy="38" r="5" fill="#00ff88"/><circle cx="100" cy="122" r="5" fill="#00ff88"/><circle cx="145" cy="38" r="5" fill="#00ff88"/>
-    </svg>
+    <svg width="44" height="34" viewBox="0 0 200 160"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#0088ff"/><stop offset="50%" stop-color="#00e5ff"/><stop offset="100%" stop-color="#0088ff"/></linearGradient></defs>
+    <path d="M30 80 Q55 30 80 80 Q105 130 120 80 Q145 30 170 80" fill="none" stroke="url(#lg)" stroke-width="1.8"/>
+    <circle cx="30" cy="80" r="7" fill="#0088ff"/><circle cx="80" cy="80" r="8" fill="#00bbff"/><circle cx="120" cy="80" r="8" fill="#00bbff"/><circle cx="170" cy="80" r="7" fill="#0088ff"/>
+    <circle cx="55" cy="38" r="5" fill="#00ff88"/><circle cx="100" cy="122" r="5" fill="#00ff88"/><circle cx="145" cy="38" r="5" fill="#00ff88"/></svg>
     <div><h1>MESHSIG</h1><div class="tag">SECURITY OPS</div></div>
   </div>
   <div class="sb-nav">
     <div class="sb-section">MONITOR</div>
-    <div class="sb-item active" data-page="network"><span class="icon">◉</span> Network Map</div>
+    <div class="sb-item active" data-page="office"><span class="icon">◉</span> HQ Office</div>
     <div class="sb-item" data-page="agents"><span class="icon">◈</span> Agents</div>
     <div class="sb-item" data-page="messages"><span class="icon">◆</span> Messages</div>
     <div class="sb-section">SECURITY</div>
@@ -251,453 +121,83 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;
   </div>
   <div class="sb-ws"><div class="pulse off" id="wsd"></div><span id="wsl" style="color:var(--muted)">CONNECTING</span></div>
 </div>
-
-<!-- Main area -->
 <div id="main">
-  <div id="topbar">
-    <span id="page-title">Network Map</span>
-    <span id="clock"></span>
-  </div>
-
-  <!-- Network Page -->
-  <div class="page active" id="p-network">
-    <div id="graph"><svg></svg></div>
+  <div id="topbar"><span id="page-title">HQ Office</span><span id="clock"></span></div>
+  <div class="page active" id="p-office">
+    <canvas id="office-canvas"></canvas>
     <div id="events-panel">
       <div id="events-header"><span>LIVE SECURITY FEED</span><span class="count" id="ev-count">0</span></div>
       <div id="events"></div>
     </div>
   </div>
-
-  <!-- Agents Page -->
   <div class="page" id="p-agents"><div class="agents-grid" id="agents-grid"></div></div>
-
-  <!-- Messages Page -->
   <div class="page" id="p-messages"><div class="messages-list" id="messages-list"></div></div>
-
-  <!-- Audit Page -->
   <div class="page" id="p-audit"><div class="audit-content" id="audit-content"></div></div>
-
-  <!-- Verify Page -->
-  <div class="page" id="p-verify">
-    <div class="verify-content">
-      <div class="verify-card">
-        <h2>VERIFY SIGNATURE</h2>
-        <p class="sub">Paste a message, its Ed25519 signature, and the signer's public key or DID.</p>
-        <label>MESSAGE</label>
-        <textarea id="v-msg" placeholder="The original message that was signed"></textarea>
-        <label>SIGNATURE (Base64)</label>
-        <input id="v-sig" placeholder="HkyrXOPOXF7v422A4iOcg...">
-        <label>PUBLIC KEY (Base64)</label>
-        <input id="v-pk" placeholder="KGC0lHB6Cwhhg1kyEjrPk0...">
-        <div class="verify-or">— or —</div>
-        <label>DID</label>
-        <input id="v-did" placeholder="did:msig:3icqQkmJWby4...">
-        <button onclick="doVerify()">VERIFY SIGNATURE</button>
-        <div id="verify-result"><div id="vr-text"></div><div class="detail" id="vr-detail"></div></div>
-      </div>
-    </div>
-  </div>
+  <div class="page" id="p-verify"><div class="verify-content"><div class="verify-card">
+    <h2>VERIFY SIGNATURE</h2><p class="sub">Paste message, signature, and public key or DID.</p>
+    <label>MESSAGE</label><textarea id="v-msg"></textarea>
+    <label>SIGNATURE</label><input id="v-sig">
+    <label>PUBLIC KEY</label><input id="v-pk">
+    <div class="verify-or">— or —</div>
+    <label>DID</label><input id="v-did">
+    <button onclick="doVerify()">VERIFY SIGNATURE</button>
+    <div id="verify-result"><div id="vr-text"></div><div class="detail" id="vr-detail"></div></div>
+  </div></div></div>
 </div>
-
-<!-- Tooltip -->
-<div id="tip"></div>
-<!-- Message flash -->
-<div class="msg-flash" id="mf"></div>
-
-<!-- Audio -->
 <script>
-let audioCtx=null;
-function playBeep(f=800,d=0.08,v=0.1){
-  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-  o.connect(g);g.connect(audioCtx.destination);o.frequency.value=f;o.type='sine';
-  g.gain.setValueAtTime(v,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d);
-  o.start();o.stop(audioCtx.currentTime+d);
-}
+let agents=[],connections=[],msgCount=0,evCount=0;
+const titles={office:'HQ Office',agents:'Agents',messages:'Signed Messages',audit:'Audit Report',verify:'Verify Signature'};
+const canvas=document.getElementById('office-canvas');
+const ctx=canvas.getContext('2d');
+let CW,CH;
+const TILE=40,ISO=Math.PI/6;
+function toIso(x,y){return{x:(x-y)*TILE*Math.cos(ISO),y:(x+y)*TILE*Math.sin(ISO)}}
+function toScreen(ix,iy){const i=toIso(ix,iy);return{x:i.x+CW/2-190,y:i.y+140}}
+const ROOMS=[
+  {name:'MANAGEMENT',color:'#00e5ff',x:2,y:2,w:4,h:3},
+  {name:'SUPPORT',color:'#00ff9d',x:7,y:2,w:5,h:3},
+  {name:'MEETING ROOM',color:'#a855f7',x:2,y:6,w:4,h:3},
+  {name:'LOBBY',color:'#ffb300',x:7,y:6,w:5,h:3}
+];
+const DESKS=[{x:3,y:3},{x:4.5,y:3},{x:8,y:3},{x:9.5,y:3},{x:11,y:3}];
+const SECTOR_POS={'management':{x:3,y:3.5},'delegation':{x:4.5,y:3.5},'customer-support':{x:9,y:3.5},'support':{x:10,y:3.5},'sales':{x:8,y:3.5},'general':{x:9,y:7.5}};
+const COLORS=['#00e5ff','#00ff9d','#a855f7','#ffb300','#ff2952','#0088ff'];
+const agentChars=[],msgParticles=[],ambients=[];
+function resizeCanvas(){CW=canvas.parentElement.clientWidth-380;CH=canvas.parentElement.clientHeight;canvas.width=CW;canvas.height=CH}
+function drawTile(x,y,c,a){const p=toScreen(x,y);const dx=TILE*Math.cos(ISO),dy=TILE*Math.sin(ISO);ctx.globalAlpha=a||1;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+dx,p.y+dy);ctx.lineTo(p.x,p.y+2*dy);ctx.lineTo(p.x-dx,p.y+dy);ctx.closePath();ctx.fillStyle=c;ctx.fill();ctx.strokeStyle='rgba(0,229,255,0.06)';ctx.lineWidth=0.5;ctx.stroke();ctx.globalAlpha=1}
+function drawRoom(r){for(let i=0;i<r.w;i++)for(let j=0;j<r.h;j++)drawTile(r.x+i,r.y+j,'#070d18',0.9);const pts=[toScreen(r.x,r.y),toScreen(r.x+r.w,r.y),toScreen(r.x+r.w,r.y+r.h),toScreen(r.x,r.y+r.h)];ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);pts.forEach(p=>ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle=r.color;ctx.lineWidth=1;ctx.globalAlpha=0.25;ctx.stroke();ctx.globalAlpha=0.02;ctx.fillStyle=r.color;ctx.fill();ctx.globalAlpha=1;const c=toScreen(r.x+r.w/2,r.y-0.3);ctx.font='600 9px "JetBrains Mono"';ctx.fillStyle=r.color;ctx.globalAlpha=0.5;ctx.textAlign='center';ctx.fillText(r.name,c.x,c.y);ctx.globalAlpha=1}
+function drawDesk(d){const p=toScreen(d.x,d.y);ctx.fillStyle='#152030';ctx.globalAlpha=0.7;ctx.fillRect(p.x-14,p.y-3,28,12);ctx.fillStyle='#0a1828';ctx.fillRect(p.x-5,p.y-12,10,9);ctx.fillStyle='#00e5ff';ctx.globalAlpha=0.2;ctx.fillRect(p.x-4,p.y-11,8,7);ctx.globalAlpha=1}
+function drawAgent(a){const p=toScreen(a.cx,a.cy);const c=a.color,b=Math.sin(Date.now()/400+a.bo)*2;ctx.fillStyle='rgba(0,0,0,0.25)';ctx.beginPath();ctx.ellipse(p.x,p.y+16,10,4,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=c;ctx.globalAlpha=0.9;ctx.fillRect(p.x-6,p.y-4+b,12,16);ctx.beginPath();ctx.arc(p.x,p.y-8+b,7,0,Math.PI*2);ctx.fill();ctx.fillStyle='#020810';ctx.globalAlpha=0.6;ctx.fillRect(p.x-3,p.y-10+b,2,2);ctx.fillRect(p.x+1,p.y-10+b,2,2);ctx.globalAlpha=1;if(a.glow){ctx.beginPath();ctx.arc(p.x,p.y+b,22,0,Math.PI*2);ctx.fillStyle=c;ctx.globalAlpha=0.12+Math.sin(Date.now()/200)*0.05;ctx.fill();ctx.globalAlpha=1}if(a.walk){const pr=(Date.now()-a.ws)/(a.wd||2000);if(pr<1){ctx.fillStyle=c;ctx.globalAlpha=0.2*(1-pr);for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(p.x+Math.random()*10-5,p.y+14+Math.random()*4,1,0,Math.PI*2);ctx.fill()}ctx.globalAlpha=1}}ctx.font='600 10px "JetBrains Mono"';ctx.textAlign='center';const tw=ctx.measureText(a.name).width;ctx.fillStyle='rgba(2,8,16,0.7)';ctx.fillRect(p.x-tw/2-5,p.y+19+b,tw+10,15);ctx.fillStyle='#fff';ctx.fillText(a.name,p.x,p.y+30+b);ctx.font='400 7px "JetBrains Mono"';ctx.fillStyle=c;ctx.globalAlpha=0.6;ctx.fillText(a.role||'',p.x,p.y+40+b);ctx.globalAlpha=1;ctx.beginPath();ctx.arc(p.x+tw/2+9,p.y+26+b,3,0,Math.PI*2);ctx.fillStyle='#00ff9d';ctx.fill()}
+function addMsg(from,to,text){msgParticles.push({f:from,t:to,tx:text||'',s:Date.now(),d:2000,tr:[]});from.glow=to.glow=true;setTimeout(()=>{from.glow=to.glow=false},3000);from.walk=true;from.ws=Date.now();from.wd=1500;const ox=from.hx,oy=from.hy;from.tx=from.hx+(to.hx-from.hx)*0.3;from.ty=from.hy+(to.hy-from.hy)*0.3;setTimeout(()=>{from.tx=ox;from.ty=oy;from.walk=false},3000)}
+function drawMsgs(){const now=Date.now();for(let i=msgParticles.length-1;i>=0;i--){const m=msgParticles[i],t=(now-m.s)/m.d;if(t>1){msgParticles.splice(i,1);continue}const cx=m.f.cx+(m.t.cx-m.f.cx)*t,cy=m.f.cy+(m.t.cy-m.f.cy)*t,p=toScreen(cx,cy);m.tr.push({x:p.x,y:p.y,t:now});for(let j=m.tr.length-1;j>=0;j--){const a=(now-m.tr[j].t)/400;if(a>1){m.tr.splice(j,1);continue}ctx.beginPath();ctx.arc(m.tr[j].x,m.tr[j].y,3*(1-a),0,Math.PI*2);ctx.fillStyle='#ffb300';ctx.globalAlpha=0.5*(1-a);ctx.fill()}ctx.beginPath();ctx.arc(p.x,p.y,6+Math.sin(now/100)*2,0,Math.PI*2);ctx.fillStyle='#ffb300';ctx.globalAlpha=0.9;ctx.fill();ctx.globalAlpha=1;if(m.tx&&t>0.25&&t<0.75){ctx.font='500 9px "JetBrains Mono"';ctx.textAlign='center';ctx.fillStyle='#ffb300';ctx.globalAlpha=Math.min(1,(t-0.25)*6)*Math.min(1,(0.75-t)*6);ctx.fillText('"'+m.tx.slice(0,35)+'"',p.x,p.y-16);ctx.globalAlpha=1}}}
+function initAmb(){for(let i=0;i<25;i++)ambients.push({x:Math.random()*CW,y:Math.random()*CH,vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.2,r:Math.random()*1.5+0.5,a:Math.random()*0.2})}
+function drawAmb(){ambients.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=CW;if(p.x>CW)p.x=0;if(p.y<0)p.y=CH;if(p.y>CH)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='#00e5ff';ctx.globalAlpha=p.a;ctx.fill()});ctx.globalAlpha=1}
+function syncChars(){agents.forEach((a,i)=>{let c=agentChars.find(x=>x.did===a.did);if(!c){const caps=(a.capabilities||[]).map(x=>x.type);const mc=caps[0]||'general';const pos=SECTOR_POS[mc]||SECTOR_POS.general;const off=agentChars.filter(x=>{const cc=(agents.find(aa=>aa.did===x.did)?.capabilities||[]).map(x=>x.type);return cc[0]===mc}).length;c={did:a.did,name:a.displayName,role:caps.join(', '),color:COLORS[i%COLORS.length],hx:(pos?.x||5)+off*1.5,hy:pos?.y||5,cx:(pos?.x||5)+off*1.5,cy:pos?.y||5,tx:(pos?.x||5)+off*1.5,ty:pos?.y||5,glow:false,walk:false,bo:Math.random()*6.28};agentChars.push(c)}})}
+function updateChars(){agentChars.forEach(a=>{a.cx+=(a.tx-a.cx)*0.03;a.cy+=(a.ty-a.cy)*0.03})}
+function drawCorner(x,y,dx,dy){ctx.strokeStyle='#00e5ff';ctx.lineWidth=1;ctx.globalAlpha=0.12;ctx.beginPath();ctx.moveTo(x,y+20*dy);ctx.lineTo(x,y);ctx.lineTo(x+20*dx,y);ctx.stroke();ctx.globalAlpha=1}
+function render(){ctx.clearRect(0,0,CW,CH);const g=ctx.createRadialGradient(CW/2,CH/2,0,CW/2,CH/2,CW);g.addColorStop(0,'#060e1e');g.addColorStop(1,'#020810');ctx.fillStyle=g;ctx.fillRect(0,0,CW,CH);drawAmb();ROOMS.forEach(drawRoom);DESKS.forEach(drawDesk);[...agentChars].sort((a,b)=>a.cy-b.cy).forEach(drawAgent);drawMsgs();updateChars();ctx.font='600 10px "JetBrains Mono"';ctx.textAlign='left';ctx.fillStyle='#00e5ff';ctx.globalAlpha=0.35;ctx.fillText('MESHSIG HEADQUARTERS',10,20);ctx.font='400 8px "JetBrains Mono"';ctx.fillStyle='#2a5580';ctx.fillText(agentChars.length+' AGENTS · '+connections.length+' CONNECTIONS',10,32);ctx.globalAlpha=1;drawCorner(0,0,1,1);drawCorner(CW,0,-1,1);drawCorner(0,CH,1,-1);drawCorner(CW,CH,-1,-1);requestAnimationFrame(render)}
+// Nav
+document.querySelectorAll('.sb-item').forEach(el=>{el.addEventListener('click',()=>{document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));el.classList.add('active');const pg=el.dataset.page;document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('p-'+pg).classList.add('active');document.getElementById('page-title').textContent=titles[pg]||pg;if(pg==='agents')renderAgentsPage();if(pg==='messages')renderMessagesPage();if(pg==='audit')renderAuditPage();if(pg==='office'){resizeCanvas();render()}})});
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false})+' UTC'},1000);
+// Events
+const evDiv=document.getElementById('events');
+function addEv(type,html){evCount++;document.getElementById('ev-count').textContent=evCount;const el=document.createElement('div');el.className='ev '+type;el.innerHTML='<span class="ts">'+new Date().toLocaleTimeString('en-US',{hour12:false})+'</span> '+html;evDiv.prepend(el);while(evDiv.children.length>80)evDiv.removeChild(evDiv.lastChild)}
+function updateStats(){document.getElementById('sb-agents').textContent=agents.length;document.getElementById('sb-links').textContent=connections.length;document.getElementById('sb-msgs').textContent=msgCount;const ts=agents.map(n=>n.trustScore||0).filter(t=>t>0);document.getElementById('sb-trust').textContent=ts.length?(ts.reduce((a,b)=>a+b,0)/ts.length*100).toFixed(0)+'%':'—'}
+// Audio
+let audioCtx=null;function playBeep(f,d,v){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.value=f;o.type='sine';g.gain.setValueAtTime(v,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d);o.start();o.stop(audioCtx.currentTime+d)}
 function playMsg(){playBeep(1200,0.06,0.08);setTimeout(()=>playBeep(1600,0.04,0.06),70)}
 function playJoin(){playBeep(600,0.1,0.06);setTimeout(()=>playBeep(900,0.08,0.05),120)}
 document.addEventListener('click',()=>{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)()},{once:true});
-</script>
-
-<script>
-// -- State -------------------------------------------------------------------
-let nodes=[],links=[],msgCount=0,sigCount=0,evCount=0;
-const titles={network:'Network Map',agents:'Agents',messages:'Signed Messages',audit:'Audit Report',verify:'Verify Signature'};
-
-// -- Navigation --------------------------------------------------------------
-document.querySelectorAll('.sb-item').forEach(el=>{
-  el.addEventListener('click',()=>{
-    document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
-    el.classList.add('active');
-    const pg=el.dataset.page;
-    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-    document.getElementById('p-'+pg).classList.add('active');
-    document.getElementById('page-title').textContent=titles[pg]||pg;
-    if(pg==='agents')renderAgentsPage();
-    if(pg==='messages')renderMessagesPage();
-    if(pg==='audit')renderAuditPage();
-    if(pg==='network')resizeGraph();
-  });
-});
-
-// -- Clock -------------------------------------------------------------------
-setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false})+' UTC'},1000);
-
-// -- D3 Setup ----------------------------------------------------------------
-const graphEl=document.getElementById('graph');
-let W=graphEl.clientWidth-380,H=graphEl.clientHeight;
-const svg=d3.select('#graph svg');
-const defs=svg.append('defs');
-const glow=defs.append('filter').attr('id','nodeGlow');
-glow.append('feGaussianBlur').attr('stdDeviation','4').attr('result','b');
-const gm=glow.append('feMerge');gm.append('feMergeNode').attr('in','b');gm.append('feMergeNode').attr('in','SourceGraphic');
-const msgGlow=defs.append('filter').attr('id','msgGlow');
-msgGlow.append('feGaussianBlur').attr('stdDeviation','3').attr('result','b');
-const mgm=msgGlow.append('feMerge');mgm.append('feMergeNode').attr('in','b');mgm.append('feMergeNode').attr('in','SourceGraphic');
-
-// Grid - hexagonal
-const grid=defs.append('pattern').attr('id','grid').attr('width',60).attr('height',52).attr('patternUnits','userSpaceOnUse');
-grid.append('path').attr('d','M30 0 L60 15 L60 37 L30 52 L0 37 L0 15 Z').attr('fill','none').attr('stroke','#061428').attr('stroke-width','0.5');
-grid.append('circle').attr('cx',30).attr('cy',26).attr('r',0.5).attr('fill','#0a2040');
-const bgRect=svg.append('rect').attr('width',W).attr('height',H).attr('fill','url(#grid)');
-
-const linkG=svg.append('g'),particleG=svg.append('g'),nodeG=svg.append('g'),labelG=svg.append('g'),flowG=svg.append('g');
-
-const simulation=d3.forceSimulation(nodes)
-  .force('link',d3.forceLink(links).id(d=>d.did).distance(140).strength(0.25))
-  .force('charge',d3.forceManyBody().strength(-500))
-  .force('center',d3.forceCenter(W/2,H/2))
-  .force('collision',d3.forceCollide().radius(50))
-  .on('tick',tick);
-
-function resizeGraph(){
-  W=graphEl.clientWidth-380;H=graphEl.clientHeight;
-  bgRect.attr('width',W).attr('height',H);
-  simulation.force('center',d3.forceCenter(W/2,H/2)).alpha(0.3).restart();
-}
-
-function tick(){
-  linkG.selectAll('line').attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
-  nodeG.selectAll('.glow').attr('cx',d=>d.x).attr('cy',d=>d.y);
-  nodeG.selectAll('.core').attr('cx',d=>d.x).attr('cy',d=>d.y);
-  nodeG.selectAll('.ring').attr('cx',d=>d.x).attr('cy',d=>d.y);
-  labelG.selectAll('.nm').attr('x',d=>d.x).attr('y',d=>d.y+26);
-  labelG.selectAll('.cap').attr('x',d=>d.x).attr('y',d=>d.y+38);
-}
-
-function nColor(d){return d.origin==='remote'?'#ffb300':'#00e5ff'}
-
-function updateGraph(){
-  const lk=linkG.selectAll('line').data(links,d=>(d.source.did||d.source)+'-'+(d.target.did||d.target));
-  lk.exit().remove();
-  lk.enter().append('line').attr('stroke','rgba(0,229,255,0.15)').attr('stroke-width',d=>1+(d.trustScore||0)*3)
-    .attr('stroke-dasharray','4,4').attr('stroke-opacity',0)
-    .transition().duration(800).attr('stroke-opacity',d=>0.3+(d.trustScore||0)*0.6);
-
-  const ring=nodeG.selectAll('.ring').data(nodes,d=>d.did);
-  ring.exit().remove();
-  ring.enter().append('circle').attr('class','ring').attr('r',18).attr('fill','none')
-    .attr('stroke',d=>nColor(d)).attr('stroke-width',0.8).attr('stroke-opacity',0).attr('stroke-dasharray','2,4')
-    .transition().duration(600).attr('stroke-opacity',0.3);
-
-  const gl=nodeG.selectAll('.glow').data(nodes,d=>d.did);
-  gl.exit().remove();
-  gl.enter().append('circle').attr('class','glow').attr('r',24)
-    .attr('fill',d=>nColor(d)).attr('opacity',0).attr('filter','url(#nodeGlow)')
-    .transition().duration(600).attr('opacity',0.2);
-
-  const nd=nodeG.selectAll('.core').data(nodes,d=>d.did);
-  nd.exit().transition().duration(300).attr('r',0).remove();
-  nd.enter().append('circle').attr('class','core').attr('r',0)
-    .attr('fill',d=>nColor(d)).attr('stroke',d=>nColor(d)).attr('stroke-width',2).attr('stroke-opacity',0.4)
-    .attr('cursor','pointer')
-    .call(d3.drag().on('start',(e,d)=>{if(!e.active)simulation.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y})
-      .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y}).on('end',(e,d)=>{if(!e.active)simulation.alphaTarget(0);d.fx=null;d.fy=null}))
-    .on('mouseover',function(e,d){d3.select(this).transition().attr('r',12).attr('stroke-opacity',1);showTip(e,d)})
-    .on('mouseout',function(e,d){d3.select(this).transition().attr('r',7+d.trustScore*4).attr('stroke-opacity',0.4);hideTip()})
-    .transition().duration(600).attr('r',d=>7+d.trustScore*4);
-
-  const nm=labelG.selectAll('.nm').data(nodes,d=>d.did);
-  nm.exit().remove();
-  nm.enter().append('text').attr('class','nm').attr('text-anchor','middle')
-    .attr('fill',d=>d.origin==='remote'?'#f0b429':'#8ab4d0')
-    .attr('font-size','11px').attr('font-weight','600').attr('font-family','JetBrains Mono,monospace')
-    .attr('opacity',0).text(d=>d.displayName).transition().duration(600).attr('opacity',1);
-
-  const cp=labelG.selectAll('.cap').data(nodes,d=>d.did);
-  cp.exit().remove();
-  cp.enter().append('text').attr('class','cap').attr('text-anchor','middle')
-    .attr('fill','#5a8aaa').attr('font-size','9px').attr('font-family','JetBrains Mono,monospace')
-    .attr('opacity',0).text(d=>capLabel(d)).transition().duration(600).attr('opacity',1);
-  labelG.selectAll('.cap').text(d=>capLabel(d));
-
-  simulation.nodes(nodes);simulation.force('link').links(links);simulation.alpha(0.5).restart();
-}
-
-function capLabel(d){
-  const c=(d.capabilities||[]).map(c=>c.type).join(', ');
-  const t=d.trustScore>0?` · ${(d.trustScore*100).toFixed(0)}%`:'';
-  const s=d.origin==='remote'&&d.originServer?' ⟐ '+d.originServer:'';
-  return c+t+s;
-}
-
-// Flowing particles
-setInterval(()=>{
-  links.forEach(l=>{
-    const s=l.source,t=l.target;if(!s.x||!t.x||Math.random()>0.3)return;
-    flowG.append('circle').attr('r',1.5).attr('fill','#00d4ff').attr('opacity',0.4).attr('cx',s.x).attr('cy',s.y)
-      .transition().duration(2000+Math.random()*1000).ease(d3.easeLinear).attr('cx',t.x).attr('cy',t.y).attr('opacity',0).remove();
-  });
-},800);
-
-function animateMsg(fromDid,toDid,preview){
-  const s=nodes.find(n=>n.did===fromDid),t=nodes.find(n=>n.did===toDid);if(!s||!t)return;
-  // Main particle
-  const p=particleG.append('circle').attr('r',8).attr('fill','#ffb300').attr('opacity',1)
-    .attr('cx',s.x).attr('cy',s.y).attr('filter','url(#msgGlow)');
-  // Trail particles
-  for(let i=1;i<=5;i++){
-    particleG.append('circle').attr('r',5-i*0.8).attr('fill','#ffb300').attr('opacity',0.4/i)
-      .attr('cx',s.x).attr('cy',s.y).transition().delay(i*60).duration(1500).ease(d3.easeCubicInOut)
-      .attr('cx',t.x).attr('cy',t.y).attr('opacity',0).remove();
-  }
-  // Glow along connection line
-  linkG.selectAll('line')
-    .filter(d=>(d.source.did===fromDid&&d.target.did===toDid)||(d.source.did===toDid&&d.target.did===fromDid))
-    .transition().duration(200).attr('stroke','#ffb300').attr('stroke-width',5).attr('stroke-dasharray','none').attr('stroke-opacity',0.8)
-    .transition().duration(1500).attr('stroke','rgba(0,229,255,0.15)').attr('stroke-width',d=>1+(d.trustScore||0)*3).attr('stroke-dasharray','4,4').attr('stroke-opacity',d=>0.3+(d.trustScore||0)*0.6);
-  // Target node pulse
-  nodeG.selectAll('.glow').filter(d=>d.did===toDid)
-    .transition().duration(200).attr('opacity',0.6).attr('r',35).transition().duration(1000).attr('opacity',0.2).attr('r',24);
-  // Expanding ring at source
-  particleG.append('circle').attr('cx',s.x).attr('cy',s.y).attr('r',8).attr('fill','none')
-    .attr('stroke','#ffb300').attr('stroke-width',2).attr('opacity',0.8)
-    .transition().duration(1000).attr('r',40).attr('opacity',0).remove();
-  // Main particle travel
-  p.transition().duration(1500).ease(d3.easeCubicInOut).attr('cx',t.x).attr('cy',t.y).attr('r',12).attr('opacity',0).remove();
-  if(preview){const mf=document.getElementById('mf');mf.textContent='"'+preview.slice(0,50)+'"';
-    mf.style.left=((s.x+t.x)/2+graphEl.offsetLeft+220)+'px';mf.style.top=((s.y+t.y)/2+52-20)+'px';
-    mf.classList.add('show');setTimeout(()=>mf.classList.remove('show'),2500);}
-  playMsg();
-}
-
-function flashNode(did,color){
-  const n=nodes.find(n=>n.did===did);if(!n)return;
-  particleG.append('circle').attr('cx',n.x||W/2).attr('cy',n.y||H/2)
-    .attr('r',8).attr('fill','none').attr('stroke',color).attr('stroke-width',2).attr('opacity',1)
-    .transition().duration(1200).attr('r',40).attr('opacity',0).remove();
-}
-
-// Tooltip
-const tip=document.getElementById('tip');
-function showTip(e,d){
-  const isR=d.origin==='remote';
-  tip.innerHTML=`
-    <div style="font:700 14px var(--mono);color:${nColor(d)};margin-bottom:6px">${d.displayName}</div>
-    <div style="color:var(--dim);font-size:10px;margin-bottom:6px">${d.did.slice(0,40)}...</div>
-    <div style="margin-bottom:6px"><span style="background:${isR?'#f0b42915':'#00ff8815'};color:${isR?'var(--amber)':'var(--green)'};padding:2px 8px;border-radius:4px;font-size:10px">${isR?'⟐ REMOTE':'● LOCAL'}</span></div>
-    <div style="margin-bottom:3px;color:var(--muted)">${d.online?'<span style="color:var(--green)">● Online</span>':'○ Offline'}</div>
-    <div style="margin-bottom:3px;color:var(--muted)">Trust: <strong style="color:var(--text)">${(d.trustScore*100).toFixed(1)}%</strong></div>
-    <div style="color:var(--dim);margin-top:4px">${(d.capabilities||[]).map(c=>c.type).join(', ')}</div>`;
-  tip.style.display='block';tip.style.left=(e.pageX+16)+'px';tip.style.top=(e.pageY-16)+'px';
-}
-function hideTip(){tip.style.display='none'}
-
-// Events
-const evDiv=document.getElementById('events');
-function addEv(type,html){
-  evCount++;document.getElementById('ev-count').textContent=evCount;
-  const el=document.createElement('div');el.className='ev '+type;
-  el.innerHTML=`<span class="ts">${new Date().toLocaleTimeString('en-US',{hour12:false})}</span> ${html}`;
-  evDiv.prepend(el);while(evDiv.children.length>80)evDiv.removeChild(evDiv.lastChild);
-}
-
-function updateStats(){
-  document.getElementById('sb-agents').textContent=nodes.length;
-  document.getElementById('sb-links').textContent=links.length;
-  document.getElementById('sb-msgs').textContent=msgCount;
-  const ts=nodes.map(n=>n.trustScore||0).filter(t=>t>0);
-  document.getElementById('sb-trust').textContent=ts.length?(ts.reduce((a,b)=>a+b,0)/ts.length*100).toFixed(0)+'%':'—';
-}
-
-// -- Agents Page -------------------------------------------------------------
-function renderAgentsPage(){
-  const g=document.getElementById('agents-grid');
-  g.innerHTML='';
-  for(const a of nodes){
-    const isR=a.origin==='remote';
-    const caps=(a.capabilities||[]).map(c=>`<span class="ac-cap ${isR?'ac-remote':''}">${c.type}${c.confidence?' '+Math.round(c.confidence*100)+'%':''}</span>`).join('');
-    g.innerHTML+=`<div class="agent-card">
-      <div class="ac-header"><div class="ac-dot" style="background:${nColor(a)}"></div><span class="ac-name">${a.displayName}</span></div>
-      <div class="ac-did">${a.did}</div>
-      <div class="ac-row"><span class="ac-label" style="color:var(--text)">Origin</span><span class="ac-value" style="color:${isR?'var(--amber)':'var(--green)'}">${isR?'⟐ Remote':'● Local'}</span></div>
-      <div class="ac-row"><span class="ac-label">Trust</span><span class="ac-value">${(a.trustScore*100).toFixed(1)}%</span></div>
-      <div class="ac-row"><span class="ac-label">Interactions</span><span class="ac-value">${a.interactionsTotal||0}</span></div>
-      <div class="ac-row"><span class="ac-label">Status</span><span class="ac-value" style="color:${a.online?'var(--green)':'var(--dim)'}">${a.online?'Online':'Offline'}</span></div>
-      <div class="ac-caps">${caps}</div>
-    </div>`;
-  }
-  if(nodes.length===0)g.innerHTML='<div style="color:var(--dim);padding:40px;font:14px var(--mono);text-align:center">No agents registered</div>';
-}
-
-// -- Messages Page -----------------------------------------------------------
-async function renderMessagesPage(){
-  const l=document.getElementById('messages-list');
-  l.innerHTML='<div style="color:var(--dim);padding:20px;font:12px var(--mono)">Loading...</div>';
-  try{
-    const res=await fetch('/messages?limit=100');
-    const data=await res.json();
-    const msgs=data.messages||[];
-    if(msgs.length===0){l.innerHTML='<div style="color:var(--dim);padding:40px;font:14px var(--mono);text-align:center">No messages yet</div>';return;}
-    l.innerHTML='';
-    for(const m of msgs.reverse()){
-      const from=nodes.find(n=>n.did===m.fromDid)?.displayName||m.fromDid?.slice(0,20)||'?';
-      const to=nodes.find(n=>n.did===m.toDid)?.displayName||m.toDid?.slice(0,20)||'?';
-      const badge=m.verified?'<span class="msg-badge valid">VERIFIED ✓</span>':'<span class="msg-badge invalid">FAILED ✗</span>';
-      l.innerHTML+=`<div class="msg-row">
-        <div class="msg-header"><span class="msg-from">${from}</span><span class="msg-arrow">→</span><span class="msg-to">${to}</span>${badge}<span class="msg-time">${m.createdAt||''}</span></div>
-        <div class="msg-body">${(m.content||'').slice(0,300)}</div>
-        <div class="msg-sig">sig: ${(m.signature||'').slice(0,60)}...</div>
-      </div>`;
-    }
-  }catch(e){l.innerHTML=`<div style="color:var(--red);padding:20px;font:12px var(--mono)">Error: ${e.message}</div>`}
-}
-
-// -- Audit Page --------------------------------------------------------------
-async function renderAuditPage(){
-  const c=document.getElementById('audit-content');
-  c.innerHTML='<div style="color:var(--dim);padding:20px;font:12px var(--mono)">Loading audit report...</div>';
-  try{
-    const res=await fetch('/audit/export');
-    const data=await res.json();
-    const s=data.summary;
-    c.innerHTML=`
-      <div class="audit-summary">
-        <div class="audit-card"><div class="val">${s.totalAgents}</div><div class="lbl">TOTAL AGENTS</div></div>
-        <div class="audit-card"><div class="val">${s.localAgents}</div><div class="lbl">LOCAL</div></div>
-        <div class="audit-card"><div class="val">${s.remoteAgents}</div><div class="lbl">REMOTE</div></div>
-        <div class="audit-card"><div class="val">${s.totalConnections}</div><div class="lbl">CONNECTIONS</div></div>
-        <div class="audit-card amber"><div class="val">${s.totalMessages}</div><div class="lbl">TOTAL MESSAGES</div></div>
-        <div class="audit-card green"><div class="val">${s.verifiedMessages}</div><div class="lbl">VERIFIED</div></div>
-        <div class="audit-card red"><div class="val">${s.failedVerifications}</div><div class="lbl">FAILED</div></div>
-        <div class="audit-card green"><div class="val">${(s.averageTrust*100).toFixed(0)}%</div><div class="lbl">AVG TRUST</div></div>
-      </div>
-      <div class="audit-actions">
-        <button class="audit-btn" onclick="downloadAudit()">↓ Download JSON</button>
-        <button class="audit-btn" onclick="copyAudit()">Copy to clipboard</button>
-      </div>
-      <div class="audit-json" id="audit-json">${JSON.stringify(data,null,2)}</div>`;
-    window._auditData=data;
-  }catch(e){c.innerHTML=`<div style="color:var(--red);padding:20px;font:12px var(--mono)">Error: ${e.message}</div>`}
-}
-
-function downloadAudit(){
-  if(!window._auditData)return;
-  const blob=new Blob([JSON.stringify(window._auditData,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='meshsig-audit-'+new Date().toISOString().slice(0,10)+'.json';a.click();
-}
-function copyAudit(){
-  if(!window._auditData)return;
-  navigator.clipboard.writeText(JSON.stringify(window._auditData,null,2));
-}
-
-// -- Verify ------------------------------------------------------------------
-async function doVerify(){
-  const msg=document.getElementById('v-msg').value.trim();
-  const sig=document.getElementById('v-sig').value.trim();
-  const pk=document.getElementById('v-pk').value.trim();
-  const did=document.getElementById('v-did').value.trim();
-  const r=document.getElementById('verify-result');
-  const rt=document.getElementById('vr-text');
-  const rd=document.getElementById('vr-detail');
-  if(!msg||!sig||(!pk&&!did)){r.className='invalid';r.style.display='block';rt.textContent='Fill all required fields';return}
-  const body={message:msg,signature:sig};
-  if(did)body.did=did;else body.publicKey=pk;
-  try{
-    const res=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const data=await res.json();
-    if(data.valid){r.className='valid';rt.textContent='✓ SIGNATURE VALID';rd.textContent='Verified at '+data.verifiedAt;}
-    else{r.className='invalid';rt.textContent='✗ SIGNATURE INVALID';rd.textContent='Signature does not match message and key.';}
-  }catch(e){r.className='invalid';rt.textContent='Error: '+e.message;rd.textContent=''}
-}
-
-// -- WebSocket ---------------------------------------------------------------
-let ws;
-function connectWs(){
-  const proto=location.protocol==='https:'?'wss:':'ws:';
-  ws=new WebSocket(`${proto}//${location.host}?role=dashboard`);
-  ws.onopen=()=>{document.getElementById('wsd').className='pulse';document.getElementById('wsl').textContent='LIVE';document.getElementById('wsl').style.color='var(--green)';addEv('system','<span style="color:var(--green)">● CONNECTED</span> to MeshSig')};
-  ws.onmessage=e=>{try{handle(JSON.parse(e.data))}catch{}};
-  ws.onclose=()=>{document.getElementById('wsd').className='pulse off';document.getElementById('wsl').textContent='OFFLINE';document.getElementById('wsl').style.color='var(--red)';setTimeout(connectWs,2000)};
-}
-
-function handle(ev){
-  switch(ev.type){
-    case 'snapshot':
-      nodes.length=0;links.length=0;
-      for(const a of ev.data.agents)nodes.push({did:a.did,displayName:a.displayName,capabilities:a.capabilities,publicKey:a.publicKey,trustScore:a.trustScore||0,online:true,interactionsTotal:a.interactionsTotal||0,origin:a.origin||'local',originServer:a.originServer||''});
-      for(const c of ev.data.connections)links.push({source:c.agentADid,target:c.agentBDid,channelId:c.channelId,trustScore:c.trustScore||0,messagesExchanged:c.messagesExchanged||0});
-      updateGraph();updateStats();
-      addEv('system',`Loaded <strong>${nodes.length}</strong> agents, <strong>${links.length}</strong> connections`);
-      break;
-    case 'agent:register':{
-      const d=ev.data;
-      if(!nodes.find(n=>n.did===d.did)){
-        nodes.push({did:d.did,displayName:d.name,capabilities:d.capabilities,publicKey:d.publicKey,trustScore:d.trustScore||0,online:true,interactionsTotal:0,origin:d.origin||'local',originServer:d.originServer||'',x:W/2+(Math.random()-0.5)*150,y:H/2+(Math.random()-0.5)*150});
-        updateGraph();updateStats();
-        setTimeout(()=>flashNode(d.did,d.origin==='remote'?'#f0b429':'#00ff88'),100);
-        playJoin();
-      }
-      addEv('join',`<span class="from">${d.name}</span> joined <span class="badge ok">IDENTITY</span>`);
-      break;
-    }
-    case 'connection:established':{
-      const d=ev.data;
-      if(!links.find(l=>(l.source.did||l.source)===d.agentA.did&&(l.target.did||l.target)===d.agentB.did)){
-        links.push({source:d.agentA.did,target:d.agentB.did,channelId:d.channelId,trustScore:0,messagesExchanged:0});
-        updateGraph();updateStats();
-      }
-      addEv('handshake',`<span class="from">${d.agentA.name}</span><span class="arrow">⟷</span><span class="to">${d.agentB.name}</span> <span class="badge ok">HANDSHAKE</span>`);
-      break;
-    }
-    case 'message:sent':{
-      const d=ev.data;msgCount++;sigCount++;updateStats();
-      animateMsg(d.from.did,d.to.did,d.preview);
-      const fn=nodes.find(n=>n.did===d.from.did);
-      if(fn&&d.from.trustScore!==undefined)fn.trustScore=d.from.trustScore;
-      const lk=links.find(l=>((l.source.did||l.source)===d.from.did&&(l.target.did||l.target)===d.to.did)||((l.source.did||l.source)===d.to.did&&(l.target.did||l.target)===d.from.did));
-      if(lk){lk.trustScore=Math.min(1,(lk.trustScore||0)+(d.verified?0.02:-0.05));lk.messagesExchanged=(lk.messagesExchanged||0)+1}
-      const v=d.verified?'<span class="badge ok">SIGNED ✓</span>':'<span class="badge fail">UNVERIFIED</span>';
-      addEv('message',`<span class="from">${d.from.name||'?'}</span><span class="arrow">→</span><span class="to">${d.to.name||'?'}</span> ${v}<span class="content">${d.preview||''}</span>`);
-      break;
-    }
-    case 'handshake:verify':{
-      const d=ev.data;sigCount++;updateStats();
-      flashNode(d.fromDid,'#8b5cf6');flashNode(d.toDid,'#8b5cf6');
-      addEv('handshake',`<span class="from">${d.fromName}</span><span class="arrow">⟷</span><span class="to">${d.toName}</span> <span class="badge ok">Ed25519</span>`);
-      break;
-    }
-    case 'peer:connected':
-      addEv('system',`🌐 Peer <strong>${ev.data.name||ev.data.url}</strong> — ${ev.data.agents||0} agents`);break;
-    case 'agent:removed':{
-      const d=ev.data;
-      const idx=nodes.findIndex(n=>n.did===d.did||n.displayName===d.identifier);
-      if(idx!==-1){nodes.splice(idx,1);updateGraph();updateStats();}
-      addEv('system',`<span style="color:var(--red)">✗</span> Agent removed: <strong>${d.identifier||d.did||'?'}</strong>`);
-      break;
-    }
-    case 'agent:revoked':{
-      const d=ev.data;
-      addEv('system',`<span style="color:var(--red)">⊘</span> Agent <strong>${d.did?.slice(0,20)||'?'}</strong> revoked: ${d.reason||''}`);
-      break;
-    }
-    case 'agent:heartbeat':break;
-  }
-}
-
-connectWs();
-window.addEventListener('resize',resizeGraph);
+// Pages
+function renderAgentsPage(){const g=document.getElementById('agents-grid');g.innerHTML='';for(const a of agents){const caps=(a.capabilities||[]).map(c=>'<span class="ac-cap">'+c.type+'</span>').join('');g.innerHTML+='<div class="agent-card"><div class="ac-header"><div class="ac-dot" style="background:#00e5ff"></div><span class="ac-name">'+a.displayName+'</span></div><div class="ac-did">'+a.did+'</div><div class="ac-row"><span class="ac-label">Trust</span><span class="ac-value">'+((a.trustScore||0)*100).toFixed(1)+'%</span></div><div class="ac-row"><span class="ac-label">Status</span><span class="ac-value" style="color:var(--green)">Online</span></div><div class="ac-caps">'+caps+'</div></div>'}if(!agents.length)g.innerHTML='<div style="color:var(--dim);padding:40px;font:14px var(--mono);text-align:center">No agents</div>'}
+async function renderMessagesPage(){const l=document.getElementById('messages-list');l.innerHTML='<div style="color:var(--dim);padding:20px;font:12px var(--mono)">Loading...</div>';try{const r=await fetch('/messages?limit=100');const d=await r.json();const msgs=d.messages||[];if(!msgs.length){l.innerHTML='<div style="color:var(--dim);padding:40px;font:14px var(--mono);text-align:center">No messages</div>';return}l.innerHTML='';for(const m of msgs.reverse()){const from=agents.find(n=>n.did===m.fromDid)?.displayName||'?';const to=agents.find(n=>n.did===m.toDid)?.displayName||'?';const badge=m.verified?'<span class="msg-badge valid">VERIFIED ✓</span>':'<span class="msg-badge invalid">FAILED</span>';l.innerHTML+='<div class="msg-row"><div class="msg-header"><span class="msg-from">'+from+'</span><span class="msg-arrow">→</span><span class="msg-to">'+to+'</span>'+badge+'<span class="msg-time">'+(m.createdAt||'')+'</span></div><div class="msg-body">'+(m.content||'').slice(0,300)+'</div><div class="msg-sig">sig: '+(m.signature||'').slice(0,60)+'...</div></div>'}}catch(e){l.innerHTML='<div style="color:var(--red);padding:20px">Error: '+e.message+'</div>'}}
+async function renderAuditPage(){const c=document.getElementById('audit-content');c.innerHTML='Loading...';try{const r=await fetch('/audit/export');const d=await r.json();const s=d.summary;c.innerHTML='<div class="audit-summary"><div class="audit-card"><div class="val">'+s.totalAgents+'</div><div class="lbl">AGENTS</div></div><div class="audit-card"><div class="val">'+s.totalConnections+'</div><div class="lbl">CONNECTIONS</div></div><div class="audit-card amber"><div class="val">'+s.totalMessages+'</div><div class="lbl">MESSAGES</div></div><div class="audit-card green"><div class="val">'+s.verifiedMessages+'</div><div class="lbl">VERIFIED</div></div><div class="audit-card red"><div class="val">'+s.failedVerifications+'</div><div class="lbl">FAILED</div></div></div><div class="audit-actions"><button class="audit-btn" onclick="downloadAudit()">Download JSON</button></div><div class="audit-json">'+JSON.stringify(d,null,2)+'</div>';window._auditData=d}catch(e){c.innerHTML='Error: '+e.message}}
+function downloadAudit(){if(!window._auditData)return;const b=new Blob([JSON.stringify(window._auditData,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='meshsig-audit.json';a.click()}
+async function doVerify(){const msg=document.getElementById('v-msg').value.trim(),sig=document.getElementById('v-sig').value.trim(),pk=document.getElementById('v-pk').value.trim(),did=document.getElementById('v-did').value.trim();const r=document.getElementById('verify-result'),rt=document.getElementById('vr-text'),rd=document.getElementById('vr-detail');if(!msg||!sig||(!pk&&!did)){r.className='invalid';r.style.display='block';rt.textContent='Fill all fields';return}const body={message:msg,signature:sig};if(did)body.did=did;else body.publicKey=pk;try{const res=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await res.json();if(d.valid){r.className='valid';rt.textContent='✓ VALID';rd.textContent='Verified at '+d.verifiedAt}else{r.className='invalid';rt.textContent='✗ INVALID';rd.textContent='No match'}}catch(e){r.className='invalid';rt.textContent='Error';rd.textContent=e.message}}
+// WebSocket
+let ws;function connectWs(){const p=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(p+'//'+location.host+'?role=dashboard');ws.onopen=()=>{document.getElementById('wsd').className='pulse';document.getElementById('wsl').textContent='LIVE';document.getElementById('wsl').style.color='var(--green)';addEv('system','<span style="color:var(--green)">● CONNECTED</span> to MeshSig')};ws.onmessage=e=>{try{handle(JSON.parse(e.data))}catch{}};ws.onclose=()=>{document.getElementById('wsd').className='pulse off';document.getElementById('wsl').textContent='OFFLINE';document.getElementById('wsl').style.color='var(--red)';setTimeout(connectWs,2000)}}
+function handle(ev){switch(ev.type){case 'snapshot':agents=[];connections=[];for(const a of ev.data.agents)agents.push({...a,online:true});for(const c of ev.data.connections)connections.push(c);syncChars();updateStats();addEv('system','Loaded <strong>'+agents.length+'</strong> agents, <strong>'+connections.length+'</strong> connections');break;case 'agent:register':{const d=ev.data;if(!agents.find(n=>n.did===d.did)){agents.push({did:d.did,displayName:d.name,capabilities:d.capabilities,publicKey:d.publicKey,trustScore:d.trustScore||0,online:true,origin:d.origin||'local'});syncChars();updateStats();playJoin()}addEv('join','<span class="from">'+d.name+'</span> joined <span class="badge ok">IDENTITY</span>');break}case 'connection:established':{const d=ev.data;connections.push({agentADid:d.agentA.did,agentBDid:d.agentB.did});updateStats();addEv('handshake','<span class="from">'+d.agentA.name+'</span><span class="arrow">⟷</span><span class="to">'+d.agentB.name+'</span> <span class="badge ok">HANDSHAKE</span>');break}case 'message:sent':{const d=ev.data;msgCount++;updateStats();const fc=agentChars.find(c=>c.did===d.from?.did),tc=agentChars.find(c=>c.did===d.to?.did);if(fc&&tc)addMsg(fc,tc,d.preview);const v=d.verified?'<span class="badge ok">SIGNED ✓</span>':'<span class="badge fail">UNVERIFIED</span>';addEv('message','<span class="from">'+(d.from?.name||'?')+'</span><span class="arrow">→</span><span class="to">'+(d.to?.name||'?')+'</span> '+v+'<span class="content">'+(d.preview||'')+'</span>');playMsg();break}case 'handshake:verify':{const d=ev.data;addEv('handshake','<span class="from">'+d.fromName+'</span><span class="arrow">⟷</span><span class="to">'+d.toName+'</span> <span class="badge ok">Ed25519</span>');break}case 'agent:removed':{const d=ev.data;agents=agents.filter(a=>a.did!==d.did);const i=agentChars.findIndex(c=>c.did===d.did);if(i!==-1)agentChars.splice(i,1);updateStats();addEv('system','<span style="color:var(--red)">✗</span> Agent removed');break}}}
+resizeCanvas();initAmb();render();connectWs();window.addEventListener('resize',resizeCanvas);
 </script>
 </body>
 </html>
