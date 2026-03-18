@@ -3,3 +3,9 @@ dist/
 *.db
 .env
 .DS_Store
+
+# NEVER commit private keys
+identities/
+/opt/meshsig/identities/
+*.pem
+*.key

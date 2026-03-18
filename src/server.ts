@@ -15,6 +15,13 @@ import {
 } from './crypto.js';
 import type { MeshEvent } from './registry.js';
 
+import {
+  loadAuthConfig, isPublicRoute, checkAuth, checkWsAuth,
+  setCorsHeaders, readBodyWithLimit, BodyTooLargeError,
+  RateLimiter, ReplayGuard, validateAgentName, validateCapabilities,
+  jsonError, type AuthConfig,
+} from './auth.js';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export interface ServerConfig {
@@ -34,9 +41,9 @@ export class MeshServer {
   private wss: WebSocketServer;
   private dashboards: Set<WebSocket> = new Set();
   private dashboardHtml: string;
-  private rateLimiter: Map<string, { count: number; resetAt: number }> = new Map();
-  private readonly RATE_LIMIT = 60; // requests per window
-  private readonly RATE_WINDOW = 60_000; // 1 minute
+  private authConfig: AuthConfig;
+  private rateLimiter: RateLimiter;
+  private replayGuard: ReplayGuard;
 
   constructor(config: Partial<ServerConfig> = {}) {
     this.config = {
@@ -50,6 +57,9 @@ export class MeshServer {
 
     this.registry = new Registry(this.config.dbPath);
     this.peerNetwork = new PeerNetwork(this.registry, this.config.name);
+    this.authConfig = loadAuthConfig();
+    this.rateLimiter = new RateLimiter(this.authConfig.rateLimit, this.authConfig.rateWindow);
+    this.replayGuard = new ReplayGuard(this.authConfig.replayWindow);
     this.httpServer = createServer(this._handleHttp.bind(this));
     this.wss = new WebSocketServer({ server: this.httpServer });
     this.wss.on('connection', this._handleWs.bind(this));
@@ -95,25 +105,28 @@ export class MeshServer {
     const path = url.pathname;
     const method = req.method;
 
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-secret, x-meshsig-caller, Authorization');
+    setCorsHeaders(res, req, this.authConfig);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
     if (method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
     try {
       let body: any = null;
       if (method === 'POST') body = await this._readBody(req);
 
-      // Rate limiting (skip for dashboard and static)
-      if (path !== '/' && path !== '/dashboard') {
-        const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
-        if (!this._checkRateLimit(ip)) {
-          return this._json(res, 429, {
-            error: 'Rate limit exceeded',
-            retryAfter: Math.ceil(this.RATE_WINDOW / 1000),
-            limit: this.RATE_LIMIT,
-            window: `${this.RATE_WINDOW / 1000}s`,
-          });
+      // Rate limiting
+      const clientIp = this.rateLimiter.getClientIp(req);
+      const rateCheck = this.rateLimiter.check(clientIp);
+      res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
+      if (!rateCheck.allowed) {
+        return jsonError(res, 429, 'Rate limit exceeded');
+      }
+
+      // Authentication
+      if (!isPublicRoute(method!, path)) {
+        const auth = checkAuth(req, this.authConfig);
+        if (!auth.ok) {
+          return jsonError(res, 401, auth.error || 'Unauthorized');
         }
       }
 
@@ -141,7 +154,11 @@ export class MeshServer {
 
       // Register agent
       if (method === 'POST' && path === '/agents/register') {
-        const result = await this.registry.registerAgent(body.name, body.capabilities || []);
+        const nameCheck = validateAgentName(body?.name);
+        if (!nameCheck.valid) return this._json(res, 400, { error: nameCheck.error });
+        const capsCheck = validateCapabilities(body?.capabilities);
+        if (!capsCheck.valid) return this._json(res, 400, { error: capsCheck.error });
+        const result = await this.registry.registerAgent(nameCheck.sanitized!, capsCheck.sanitized || []);
         return this._json(res, 201, result);
       }
 
@@ -411,7 +428,12 @@ export class MeshServer {
       ]});
 
     } catch (err: any) {
-      this._json(res, err.statusCode || 500, { error: err.message });
+      if (err instanceof BodyTooLargeError) {
+        return jsonError(res, 413, err.message);
+      }
+      const status = err.statusCode || 500;
+      const message = status < 500 ? err.message : 'Internal server error';
+      jsonError(res, status, message);
     }
   }
 
@@ -458,23 +480,10 @@ export class MeshServer {
   }
 
   private _readBody(req: IncomingMessage): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const chunks: Buffer[] = [];
-      req.on('data', c => chunks.push(c));
-      req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch { reject(new Error('Invalid JSON')); } });
-    });
+    return readBodyWithLimit(req, this.authConfig.maxBodySize);
   }
 
-  private _checkRateLimit(ip: string): boolean {
-    const now = Date.now();
-    const entry = this.rateLimiter.get(ip);
-    if (!entry || now > entry.resetAt) {
-      this.rateLimiter.set(ip, { count: 1, resetAt: now + this.RATE_WINDOW });
-      return true;
-    }
-    entry.count++;
-    return entry.count <= this.RATE_LIMIT;
-  }
+  // Rate limiting handled by RateLimiter class from auth module
 
   // -- Proxy -----------------------------------------------------------------
 
@@ -645,7 +654,7 @@ export class MeshServer {
 
       return this._json(res, gwRes.status, gwData);
     } catch (err: any) {
-      return this._json(res, 502, { error: 'Gateway unreachable', details: err.message, gateway: gatewayUrl });
+      return this._json(res, 502, { error: 'Gateway unreachable' });
     }
   }
 
@@ -674,7 +683,7 @@ export class MeshServer {
         res.end(text);
       }
     } catch (err: any) {
-      return this._json(res, 502, { error: 'Gateway unreachable', details: err.message });
+      return this._json(res, 502, { error: 'Gateway unreachable' });
     }
   }
 
