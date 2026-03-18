@@ -3,7 +3,12 @@
 // ============================================================================
 
 import { IncomingMessage, ServerResponse } from 'node:http';
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
+
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 export interface AuthConfig {
   apiKey: string;
@@ -66,10 +71,10 @@ export function checkAuth(req: IncomingMessage, config: AuthConfig): { ok: boole
 
   if (authHeader.startsWith('Bearer ')) {
     const token = authHeader.slice(7).trim();
-    if (token === config.apiKey) return { ok: true };
+    if (safeCompare(token, config.apiKey)) return { ok: true };
   }
 
-  if (apiKeyHeader === config.apiKey) return { ok: true };
+  if (apiKeyHeader && safeCompare(apiKeyHeader, config.apiKey)) return { ok: true };
 
   return { ok: false, error: 'Invalid or missing API key. Use Authorization: Bearer <key> or x-api-key header.' };
 }
@@ -77,9 +82,12 @@ export function checkAuth(req: IncomingMessage, config: AuthConfig): { ok: boole
 export function checkWsAuth(req: IncomingMessage, config: AuthConfig): boolean {
   const url = new URL(req.url || '/', `http://${req.headers.host}`);
   const token = url.searchParams.get('token') || '';
-  if (token === config.apiKey) return true;
+  if (token && safeCompare(token, config.apiKey)) return true;
   const authHeader = req.headers['authorization'] || '';
-  if (authHeader.startsWith('Bearer ') && authHeader.slice(7).trim() === config.apiKey) return true;
+  if (authHeader.startsWith('Bearer ')) {
+    const bearerToken = authHeader.slice(7).trim();
+    if (bearerToken && safeCompare(bearerToken, config.apiKey)) return true;
+  }
   return false;
 }
 
