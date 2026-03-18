@@ -51,30 +51,51 @@ esac
 # Extract display name
 display_name=$(echo "$CLIENT_NAME" | sed 's/^agent-//' | cut -d'-' -f1 | sed 's/./\U&/')
 
-# Register
+# Generate keypair locally so we keep the privateKey for auto-signing
 mkdir -p "$IDENTITY_DIR"
+keygen_output=$(node -e "
+const ed = require('@noble/ed25519');
+const { sha512 } = require('@noble/hashes/sha512');
+ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
+const bs58 = require('bs58');
+const priv = ed.utils.randomPrivateKey();
+const pub = ed.getPublicKey(priv);
+const did = 'did:msig:' + bs58.encode(pub);
+const pubB64 = Buffer.from(pub).toString('base64');
+const privB64 = Buffer.from(priv).toString('base64');
+console.log(JSON.stringify({ did, publicKey: pubB64, privateKey: privB64 }));
+" 2>/dev/null)
+
+if [ -z "$keygen_output" ]; then
+  echo '{"error":"keygen failed — ensure @noble/ed25519 and bs58 are installed"}'
+  exit 1
+fi
+
+local_did=$(echo "$keygen_output" | python3 -c "import sys,json; print(json.load(sys.stdin)['did'])")
+local_pub=$(echo "$keygen_output" | python3 -c "import sys,json; print(json.load(sys.stdin)['publicKey'])")
+local_priv=$(echo "$keygen_output" | python3 -c "import sys,json; print(json.load(sys.stdin)['privateKey'])")
+
+# Register with server using our locally-generated identity (server won't see privateKey)
 result=$(curl -s -X POST "$MESH_URL/agents/register" \
   -H "Content-Type: application/json" \
-  -d "$(python3 -c "import json,sys; print(json.dumps({'name': sys.argv[1], 'capabilities': json.loads(sys.argv[2])}))" "$display_name" "$caps")")
+  -d "$(python3 -c "import json,sys; print(json.dumps({'name': sys.argv[1], 'capabilities': json.loads(sys.argv[2]), 'clientIdentity': {'did': sys.argv[3], 'publicKey': sys.argv[4]}}))" "$display_name" "$caps" "$local_did" "$local_pub")")
 
-# Save identity file (pass paths via arguments, not string interpolation)
-echo "$result" | python3 -c "
+# Save identity file WITH privateKey for auto-signing
+python3 -c "
 import sys, json, os
-data = json.load(sys.stdin)
-identity = data.get('identity', {})
-record = data.get('record', {})
 out = {
-  'did': identity.get('did',''),
-  'publicKey': identity.get('publicKey',''),
-  'displayName': record.get('displayName', ''),
-  'clientName': sys.argv[1]
+  'did': sys.argv[1],
+  'publicKey': sys.argv[2],
+  'privateKey': sys.argv[3],
+  'displayName': sys.argv[4],
+  'clientName': sys.argv[5]
 }
-identity_path = sys.argv[2]
+identity_path = sys.argv[6]
 with open(identity_path, 'w') as f:
   os.chmod(identity_path, 0o600)
   json.dump(out, f, indent=2)
 print(json.dumps({'registered':True,'did':out['did'],'name':out['displayName']}))
-" "$CLIENT_NAME" "$identity_file" 2>/dev/null
+" "$local_did" "$local_pub" "$local_priv" "$display_name" "$CLIENT_NAME" "$identity_file" 2>/dev/null
 
 # Auto-connect to managers
 for mgr_file in "$IDENTITY_DIR"/agent-*gestor*.json "$IDENTITY_DIR"/agent-*gerente*.json; do
