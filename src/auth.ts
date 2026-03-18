@@ -80,14 +80,26 @@ export function checkAuth(req: IncomingMessage, config: AuthConfig): { ok: boole
 }
 
 export function checkWsAuth(req: IncomingMessage, config: AuthConfig): boolean {
-  const url = new URL(req.url || '/', `http://${req.headers.host}`);
-  const token = url.searchParams.get('token') || '';
-  if (token && safeCompare(token, config.apiKey)) return true;
+  // Prefer Authorization header (most secure — not logged)
   const authHeader = req.headers['authorization'] || '';
   if (authHeader.startsWith('Bearer ')) {
     const bearerToken = authHeader.slice(7).trim();
     if (bearerToken && safeCompare(bearerToken, config.apiKey)) return true;
   }
+
+  // Support Sec-WebSocket-Protocol as auth transport (avoids URL exposure)
+  const protocols = req.headers['sec-websocket-protocol'] || '';
+  const protoToken = protocols.split(',').map(s => s.trim()).find(s => s.startsWith('meshsig-auth.'));
+  if (protoToken) {
+    const token = protoToken.slice('meshsig-auth.'.length);
+    if (token && safeCompare(token, config.apiKey)) return true;
+  }
+
+  // Fallback: query param (least secure — visible in logs, discouraged)
+  const url = new URL(req.url || '/', `http://${req.headers.host}`);
+  const token = url.searchParams.get('token') || '';
+  if (token && safeCompare(token, config.apiKey)) return true;
+
   return false;
 }
 
