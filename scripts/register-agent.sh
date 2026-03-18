@@ -25,7 +25,7 @@ fi
 
 # Already registered?
 if [ -f "$identity_file" ]; then
-  did=$(python3 -c "import json; print(json.load(open('$identity_file'))['did'])" 2>/dev/null)
+  did=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['did'])" "$identity_file" 2>/dev/null)
   echo "{\"already_registered\":true,\"did\":\"$did\"}"
   exit 0
 fi
@@ -55,35 +55,34 @@ display_name=$(echo "$CLIENT_NAME" | sed 's/^agent-//' | cut -d'-' -f1 | sed 's/
 mkdir -p "$IDENTITY_DIR"
 result=$(curl -s -X POST "$MESH_URL/agents/register" \
   -H "Content-Type: application/json" \
-  -d "{\"name\":\"$display_name\",\"capabilities\":$caps}")
+  -d "$(python3 -c "import json,sys; print(json.dumps({'name': sys.argv[1], 'capabilities': json.loads(sys.argv[2])}))" "$display_name" "$caps")")
 
-# Save identity file
+# Save identity file (pass paths via arguments, not string interpolation)
 echo "$result" | python3 -c "
-import sys, json
+import sys, json, os
 data = json.load(sys.stdin)
 identity = data.get('identity', {})
 record = data.get('record', {})
 out = {
   'did': identity.get('did',''),
-  'privateKey': identity.get('privateKey',''),
   'publicKey': identity.get('publicKey',''),
   'displayName': record.get('displayName', ''),
-  'clientName': '$CLIENT_NAME'
+  'clientName': sys.argv[1]
 }
-with open('$identity_file', 'w') as f:
+identity_path = sys.argv[2]
+with open(identity_path, 'w') as f:
+  os.chmod(identity_path, 0o600)
   json.dump(out, f, indent=2)
 print(json.dumps({'registered':True,'did':out['did'],'name':out['displayName']}))
-" 2>/dev/null
+" "$CLIENT_NAME" "$identity_file" 2>/dev/null
 
 # Auto-connect to managers
 for mgr_file in "$IDENTITY_DIR"/agent-*gestor*.json "$IDENTITY_DIR"/agent-*gerente*.json; do
   [ -f "$mgr_file" ] || continue
-  mgr_did=$(python3 -c "import json; print(json.load(open('$mgr_file'))['did'])" 2>/dev/null)
-  mgr_key=$(python3 -c "import json; print(json.load(open('$mgr_file'))['privateKey'])" 2>/dev/null)
-  new_did=$(python3 -c "import json; print(json.load(open('$identity_file'))['did'])" 2>/dev/null)
-  new_key=$(python3 -c "import json; print(json.load(open('$identity_file'))['privateKey'])" 2>/dev/null)
+  mgr_did=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['did'])" "$mgr_file" 2>/dev/null)
+  new_did=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['did'])" "$identity_file" 2>/dev/null)
   
-  curl -s -X POST "$MESH_URL/handshake" \
-    -H "Content-Type: application/json" \
-    -d "{\"fromDid\":\"$mgr_did\",\"toDid\":\"$new_did\",\"privateKeyA\":\"$mgr_key\",\"privateKeyB\":\"$new_key\"}" > /dev/null 2>&1
+  # NOTE: Handshake requires pre-signed request. Skipping auto-connect.
+  # Use meshsig CLI to create handshakes with local signing.
+  echo "  Handshake between $mgr_did and $new_did requires local signing — use meshsig CLI"
 done
