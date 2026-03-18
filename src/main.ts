@@ -35,7 +35,7 @@ const DEFAULT_SERVER = 'http://localhost:4888';
 // -- Helpers -----------------------------------------------------------------
 
 function ensureDir() {
-  if (!existsSync(MESHSIG_DIR)) mkdirSync(MESHSIG_DIR, { recursive: true });
+  if (!existsSync(MESHSIG_DIR)) mkdirSync(MESHSIG_DIR, { recursive: true, mode: 0o700 });
 }
 
 function loadIdentity(): any | null {
@@ -67,7 +67,7 @@ async function cmdInit(force: boolean) {
   }
 
   const identity = await generateIdentity();
-  writeFileSync(IDENTITY_FILE, JSON.stringify(identity, null, 2));
+  writeFileSync(IDENTITY_FILE, JSON.stringify(identity, null, 2), { mode: 0o600 });
 
   console.log(`\n  ${GREEN}${BOLD}✓ Identity generated${RESET}`);
   printIdentity(identity);
