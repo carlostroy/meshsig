@@ -545,6 +545,37 @@ export class MeshServer {
   // -- Proxy -----------------------------------------------------------------
 
   /**
+   * Find an identity file by matching agent name against filenames.
+   * Identity files are named like: agent-antony---gestor-de-i-17735182.json
+   * Returns { did, publicKey, privateKey } or null.
+   */
+  private _findIdentityByName(agentName: string): { did: string; publicKey: string; privateKey: string } | null {
+    const fs = require('node:fs');
+    const path2 = require('node:path');
+    const idDir = path2.resolve(
+      path2.dirname(this.config.dbPath === ':memory:' ? process.cwd() : this.config.dbPath),
+      '..', 'identities'
+    );
+    const dirs = [idDir, '/opt/meshsig/identities'];
+    const nameLower = agentName.toLowerCase().replace(/\s+/g, '-');
+
+    for (const dir of dirs) {
+      if (!fs.existsSync(dir)) continue;
+      for (const f of fs.readdirSync(dir)) {
+        // Match: filename contains the agent name (e.g. "agent-antony---gestor..." matches "Antony")
+        const fLower = f.toLowerCase();
+        if (fLower.includes(nameLower) || nameLower.includes(fLower.replace('.json', '').split('---')[0].replace('agent-', ''))) {
+          try {
+            const data = JSON.parse(fs.readFileSync(path2.resolve(dir, f), 'utf-8'));
+            if (data.privateKey) return data;
+          } catch {}
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
    * Proxy /invoke-agent with cryptographic signing.
    * Signs the delegation, logs it, broadcasts to dashboard, then forwards.
    */
@@ -612,30 +643,18 @@ export class MeshServer {
       }
     }
 
-    // If not pre-signed, auto-sign using caller's identity file (proxy-mode signing)
-    if (!verified && callerDid) {
+    // If not pre-signed, auto-sign using caller's identity file (matched by name, not DID)
+    if (!verified && callerName && callerName !== 'unknown') {
       try {
-        const fs = await import('node:fs');
-        const path2 = await import('node:path');
-        const idDir = path2.resolve(
-          path2.dirname(this.config.dbPath === ':memory:' ? process.cwd() : this.config.dbPath),
-          '..', 'identities'
-        );
-        const dirs = [idDir, '/opt/meshsig/identities'];
-        for (const dir of dirs) {
-          if (!fs.existsSync(dir)) continue;
-          for (const f of fs.readdirSync(dir)) {
-            try {
-              const data = JSON.parse(fs.readFileSync(path2.resolve(dir, f), 'utf-8'));
-              if (data.did === callerDid && data.privateKey) {
-                const ts = new Date().toISOString();
-                signature = await sign(`${message}|${ts}`, data.privateKey);
-                verified = await verifyWithDid(`${message}|${ts}`, signature, callerDid);
-                break;
-              }
-            } catch {}
-          }
-          if (verified) break;
+        const identity = this._findIdentityByName(callerName);
+        if (identity) {
+          const ts = new Date().toISOString();
+          signature = await sign(`${message}|${ts}`, identity.privateKey);
+          // Verify using the identity file's own DID (which matches its privateKey)
+          verified = await verifyWithDid(`${message}|${ts}`, signature, identity.did);
+          // Update callerDid to the identity file's DID for consistent logging
+          if (verified && !callerDid) callerDid = identity.did;
+          if (verified) console.log(`[proxy] auto-signed for caller "${callerName}" using identity DID ${identity.did.slice(0, 30)}...`);
         }
       } catch (err: any) {
         console.error(`[proxy] auto-sign failed: ${err.message}`);
@@ -680,30 +699,18 @@ export class MeshServer {
           || gwData?.response?.summary
           || '';
         if (responseText && targetDid) {
-          // Auto-sign response using target's identity
+          // Auto-sign response using target's identity (matched by name)
           let respSig = '';
           let respVerified = false;
           try {
-            const fs2 = await import('node:fs');
-            const path3 = await import('node:path');
-            const dirs2 = [
-              path3.resolve(path3.dirname(this.config.dbPath === ':memory:' ? process.cwd() : this.config.dbPath), '..', 'identities'),
-              '/opt/meshsig/identities',
-            ];
-            for (const dir of dirs2) {
-              if (!fs2.existsSync(dir)) continue;
-              for (const f of fs2.readdirSync(dir)) {
-                try {
-                  const data = JSON.parse(fs2.readFileSync(path3.resolve(dir, f), 'utf-8'));
-                  if (data.did === targetDid && data.privateKey) {
-                    const ts2 = new Date().toISOString();
-                    respSig = await sign(`${responseText.slice(0, 200)}|${ts2}`, data.privateKey);
-                    respVerified = await verifyWithDid(`${responseText.slice(0, 200)}|${ts2}`, respSig, targetDid);
-                    break;
-                  }
-                } catch {}
-              }
-              if (respVerified) break;
+            const targetIdentity = this._findIdentityByName(targetName);
+            if (targetIdentity) {
+              const ts2 = new Date().toISOString();
+              respSig = await sign(`${responseText.slice(0, 200)}|${ts2}`, targetIdentity.privateKey);
+              respVerified = await verifyWithDid(`${responseText.slice(0, 200)}|${ts2}`, respSig, targetIdentity.did);
+              // Update targetDid for consistent logging
+              if (respVerified && !targetDid) targetDid = targetIdentity.did;
+              if (respVerified) console.log(`[proxy] auto-signed response for target "${targetName}"`);
             }
           } catch {}
 
