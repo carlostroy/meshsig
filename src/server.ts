@@ -456,6 +456,12 @@ export class MeshServer {
   // -- WebSocket -------------------------------------------------------------
 
   private _handleWs(ws: WebSocket, req: IncomingMessage) {
+    // Authenticate WebSocket connections
+    if (this.authConfig.apiKey && !checkWsAuth(req, this.authConfig)) {
+      ws.close(4401, 'Unauthorized — provide token via query param or Authorization header');
+      return;
+    }
+
     const url = new URL(req.url || '/', `http://${req.headers.host}`);
     const role = url.searchParams.get('role');
 
