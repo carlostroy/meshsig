@@ -595,9 +595,11 @@ export class MeshServer {
       }
     }
 
-    // Verify pre-signed delegation if signature provided in request headers
+    // Sign the delegation using the caller's identity from the identities directory
     let signature = '';
     let verified = false;
+
+    // Check for pre-signed delegation in headers first
     const sigHeader = req.headers['x-meshsig-signature'] as string || '';
     const tsHeader = req.headers['x-meshsig-timestamp'] as string || '';
 
@@ -605,14 +607,44 @@ export class MeshServer {
       try {
         verified = await verifyWithDid(`${message}|${tsHeader}`, sigHeader, callerDid);
         signature = sigHeader;
+      } catch (err: any) {
+        console.error(`[proxy] header verification failed: ${err.message}`);
+      }
+    }
 
-        // Log the verified message
-        if (callerDid && targetDid) {
-          this.registry.logMessage(callerDid, targetDid, message, signature, verified);
+    // If not pre-signed, auto-sign using caller's identity file (proxy-mode signing)
+    if (!verified && callerDid) {
+      try {
+        const fs = await import('node:fs');
+        const path2 = await import('node:path');
+        const idDir = path2.resolve(
+          path2.dirname(this.config.dbPath === ':memory:' ? process.cwd() : this.config.dbPath),
+          '..', 'identities'
+        );
+        const dirs = [idDir, '/opt/meshsig/identities'];
+        for (const dir of dirs) {
+          if (!fs.existsSync(dir)) continue;
+          for (const f of fs.readdirSync(dir)) {
+            try {
+              const data = JSON.parse(fs.readFileSync(path2.resolve(dir, f), 'utf-8'));
+              if (data.did === callerDid && data.privateKey) {
+                const ts = new Date().toISOString();
+                signature = await sign(`${message}|${ts}`, data.privateKey);
+                verified = await verifyWithDid(`${message}|${ts}`, signature, callerDid);
+                break;
+              }
+            } catch {}
+          }
+          if (verified) break;
         }
       } catch (err: any) {
-        console.error(`[proxy] verification failed: ${err.message}`);
+        console.error(`[proxy] auto-sign failed: ${err.message}`);
       }
+    }
+
+    // Log the message
+    if (callerDid && targetDid) {
+      this.registry.logMessage(callerDid, targetDid, message, signature || 'unsigned', verified);
     }
 
     // Broadcast to dashboard (same format as message:sent)
@@ -641,29 +673,55 @@ export class MeshServer {
       });
       const gwData = await gwRes.json() as any;
       
-      // Broadcast response from target agent
+      // Sign and broadcast response from target agent
       try {
-        const responseText = gwData?.response?.result?.payloads?.[0]?.text 
+        const responseText = gwData?.response?.result?.payloads?.[0]?.text
           || gwData?.result?.payloads?.[0]?.text
           || gwData?.response?.summary
           || '';
-        if (responseText) {
+        if (responseText && targetDid) {
+          // Auto-sign response using target's identity
+          let respSig = '';
+          let respVerified = false;
+          try {
+            const fs2 = await import('node:fs');
+            const path3 = await import('node:path');
+            const dirs2 = [
+              path3.resolve(path3.dirname(this.config.dbPath === ':memory:' ? process.cwd() : this.config.dbPath), '..', 'identities'),
+              '/opt/meshsig/identities',
+            ];
+            for (const dir of dirs2) {
+              if (!fs2.existsSync(dir)) continue;
+              for (const f of fs2.readdirSync(dir)) {
+                try {
+                  const data = JSON.parse(fs2.readFileSync(path3.resolve(dir, f), 'utf-8'));
+                  if (data.did === targetDid && data.privateKey) {
+                    const ts2 = new Date().toISOString();
+                    respSig = await sign(`${responseText.slice(0, 200)}|${ts2}`, data.privateKey);
+                    respVerified = await verifyWithDid(`${responseText.slice(0, 200)}|${ts2}`, respSig, targetDid);
+                    break;
+                  }
+                } catch {}
+              }
+              if (respVerified) break;
+            }
+          } catch {}
+
           this._broadcast({
             type: 'message:sent',
             timestamp: new Date().toISOString(),
             data: {
-              from: { did: targetDid || '', name: targetName, trustScore: 0 },
+              from: { did: targetDid, name: targetName, trustScore: 0 },
               to: { did: callerDid || '', name: callerName },
               preview: responseText.slice(0, 200),
-              verified: true,
-              signature: 'response',
+              verified: respVerified,
+              signature: respSig ? respSig.slice(0, 40) : 'unsigned',
               proxy: true,
               isResponse: true,
             },
           });
-          // Log the response too
-          if (targetDid && callerDid) {
-            this.registry.logMessage(targetDid, callerDid, responseText, 'response', true);
+          if (callerDid) {
+            this.registry.logMessage(targetDid, callerDid, responseText.slice(0, 500), respSig || 'unsigned', respVerified);
           }
         }
       } catch {}
