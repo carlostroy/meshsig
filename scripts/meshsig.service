@@ -10,9 +10,16 @@ Type=simple
 ExecStart=/usr/bin/node /opt/meshsig/dist/main.js start --no-terminal
 Restart=always
 RestartSec=5
+User=meshsig
+Group=meshsig
 Environment=MESH_PORT=4888
 Environment=NODE_ENV=production
 WorkingDirectory=/opt/meshsig
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/meshsig
 
 [Install]
 WantedBy=multi-user.target
