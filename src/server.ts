@@ -176,8 +176,11 @@ export class MeshServer {
         return this._json(res, 200, { agent });
       }
 
-      // Delete agent
+      // Delete agent — requires x-admin-key header for authorization
       if (method === 'DELETE' && path.startsWith('/agents/')) {
+        if (!req.headers['x-admin-key']) {
+          return this._json(res, 403, { error: 'Agent deletion requires x-admin-key header for authorization' });
+        }
         const identifier = decodeURIComponent(path.slice('/agents/'.length));
         const deleted = this.registry.deleteAgent(identifier);
         if (!deleted) return this._json(res, 404, { error: 'Agent not found' });
@@ -200,9 +203,18 @@ export class MeshServer {
         });
       }
 
-      // Revoke agent — mark as compromised, reject all future messages
+      // Revoke agent — requires ownership proof (signed challenge) or admin API key
       if (method === 'POST' && path === '/agents/revoke') {
         if (!body?.did) return this._json(res, 400, { error: 'did required' });
+        // Require ownership proof: a signed challenge proving the caller owns this agent
+        if (body.challenge && body.challengeSignature) {
+          const agent = this.registry.getAgent(body.did);
+          if (!agent) return this._json(res, 404, { error: 'Agent not found' });
+          const valid = await verify(body.challenge, body.challengeSignature, agent.publicKey);
+          if (!valid) return this._json(res, 403, { error: 'Invalid ownership proof — challenge signature does not match agent public key' });
+        } else if (!req.headers['x-admin-key']) {
+          return this._json(res, 403, { error: 'Revocation requires either ownership proof (challenge + challengeSignature) or x-admin-key header' });
+        }
         const reason = body.reason || 'Revoked by operator';
         const revoked = this.registry.revokeAgent(body.did, reason);
         if (!revoked) return this._json(res, 404, { error: 'Agent not found' });
