@@ -55,6 +55,9 @@ const PUBLIC_ROUTES: Array<{ method: string; path: string | RegExp }> = [
   { method: 'POST', path: '/verify' },
   { method: 'GET', path: '/revoked' },
   { method: 'OPTIONS', path: /.*/ },
+  // Proxy routes — gateway handles its own auth via x-api-secret
+  { method: 'POST', path: '/invoke-agent' },
+  { method: 'POST', path: '/invoke-team' },
 ];
 
 export function isPublicRoute(method: string, path: string): boolean {
