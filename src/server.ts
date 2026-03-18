@@ -3,8 +3,9 @@
 // ============================================================================
 
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
+import { createServer as createHttpsServer } from 'node:https';
 import { WebSocketServer, WebSocket } from 'ws';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Registry } from './registry.js';
@@ -31,6 +32,8 @@ export interface ServerConfig {
   name: string;
   peers: string[];
   gatewayUrl?: string; // upstream gateway to proxy (e.g. http://localhost:3001)
+  tlsCert?: string;    // path to TLS certificate file
+  tlsKey?: string;     // path to TLS private key file
 }
 
 export class MeshServer {
@@ -53,6 +56,8 @@ export class MeshServer {
       name: config.name || 'meshsig',
       peers: config.peers || [],
       gatewayUrl: config.gatewayUrl || process.env.MESH_GATEWAY || undefined,
+      tlsCert: config.tlsCert || process.env.MESH_TLS_CERT || undefined,
+      tlsKey: config.tlsKey || process.env.MESH_TLS_KEY || undefined,
     };
 
     this.registry = new Registry(this.config.dbPath);
@@ -60,7 +65,16 @@ export class MeshServer {
     this.authConfig = loadAuthConfig();
     this.rateLimiter = new RateLimiter(this.authConfig.rateLimit, this.authConfig.rateWindow);
     this.replayGuard = new ReplayGuard(this.authConfig.replayWindow);
-    this.httpServer = createServer(this._handleHttp.bind(this));
+
+    // Use HTTPS if TLS cert and key are provided
+    if (this.config.tlsCert && this.config.tlsKey && existsSync(this.config.tlsCert) && existsSync(this.config.tlsKey)) {
+      this.httpServer = createHttpsServer({
+        cert: readFileSync(this.config.tlsCert),
+        key: readFileSync(this.config.tlsKey),
+      }, this._handleHttp.bind(this));
+    } else {
+      this.httpServer = createServer(this._handleHttp.bind(this));
+    }
     this.wss = new WebSocketServer({ server: this.httpServer });
     this.wss.on('connection', this._handleWs.bind(this));
 
