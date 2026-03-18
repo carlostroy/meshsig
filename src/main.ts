@@ -413,7 +413,7 @@ function parseStartArgs() {
 async function cmdStart() {
   const config = parseStartArgs();
   const port = config.port || 4888;
-  const host = config.host || '0.0.0.0';
+  const host = config.host || process.env.MESH_HOST || '127.0.0.1';
   const gatewayUrl = config.gatewayUrl || process.env.MESH_GATEWAY || undefined;
 
   ensureDir();

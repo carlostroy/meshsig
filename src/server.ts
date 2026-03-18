@@ -48,7 +48,7 @@ export class MeshServer {
   constructor(config: Partial<ServerConfig> = {}) {
     this.config = {
       port: config.port || parseInt(process.env.MESH_PORT || '4888'),
-      host: config.host || '0.0.0.0',
+      host: config.host || process.env.MESH_HOST || '127.0.0.1',
       dbPath: config.dbPath || ':memory:',
       name: config.name || 'meshsig',
       peers: config.peers || [],
