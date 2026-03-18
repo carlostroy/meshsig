@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { Registry } from './registry.js';
 import { PeerNetwork } from './peers.js';
 import {
-  sign, verify, verifyWithDid, createHandshakeRequest,
-  verifyHandshakeRequest, createHandshakeResponse,
+  sign, verify, verifyWithDid,
+  verifyHandshakeRequest,
 } from './crypto.js';
 import type { MeshEvent } from './registry.js';
 
@@ -184,19 +184,18 @@ export class MeshServer {
         return this._json(res, 200, { message: 'Agent deleted', identifier });
       }
 
-      // Key rotation — generate new keypair while keeping the same DID
+      // Key rotation — client proves ownership via signed challenge, provides new public key
       if (method === 'POST' && path === '/agents/rotate-key') {
-        if (!body?.did || !body?.currentPrivateKey) {
-          return this._json(res, 400, { error: 'did and currentPrivateKey required' });
+        if (!body?.did || !body?.challenge || !body?.challengeSignature || !body?.newPublicKey) {
+          return this._json(res, 400, { error: 'did, challenge, challengeSignature, and newPublicKey required. Sign the challenge locally with your current private key.' });
         }
-        const result = await this.registry.rotateKey(body.did, body.currentPrivateKey);
-        if (!result) return this._json(res, 404, { error: 'Agent not found or invalid key' });
+        const result = await this.registry.rotateKey(body.did, body.challenge, body.challengeSignature, body.newPublicKey);
+        if (!result) return this._json(res, 404, { error: 'Agent not found or invalid ownership proof' });
         return this._json(res, 200, {
           message: 'Key rotated successfully',
           did: body.did,
           newPublicKey: result.publicKey,
           rotatedAt: result.rotatedAt,
-          warning: 'Store the new private key securely. The old key is now invalid.',
         });
       }
 
@@ -228,11 +227,16 @@ export class MeshServer {
         return this._json(res, 200, { agents, total: agents.length });
       }
 
-      // Sign
+      // Sign — client must provide a pre-computed signature (signing happens client-side)
       if (method === 'POST' && path === '/messages/sign') {
-        const ts = new Date().toISOString();
-        const sig = await sign(`${body.message}|${ts}`, body.privateKey);
-        return this._json(res, 200, { protocol: 'meshsig-v1', did: body.did, message: body.message, signature: sig, timestamp: ts });
+        if (!body?.message || !body?.signature || !body?.did || !body?.timestamp) {
+          return this._json(res, 400, { error: 'message, signature, did, and timestamp required. Sign locally using: meshsig sign <message>' });
+        }
+        // Verify the provided signature is valid
+        const content = `${body.message}|${body.timestamp}`;
+        const valid = await verifyWithDid(content, body.signature, body.did);
+        if (!valid) return this._json(res, 400, { error: 'Invalid signature — message was not signed by the provided DID' });
+        return this._json(res, 200, { protocol: 'meshsig-v1', did: body.did, message: body.message, signature: body.signature, timestamp: body.timestamp, verified: true });
       }
 
       // Verify
@@ -242,8 +246,11 @@ export class MeshServer {
         return this._json(res, 200, { valid, did: body.did });
       }
 
-      // Send message (sign + log + broadcast)
+      // Send message — client signs locally, server verifies and logs
       if (method === 'POST' && path === '/messages/send') {
+        if (!body?.fromDid || !body?.toDid || !body?.message || !body?.signature || !body?.timestamp) {
+          return this._json(res, 400, { error: 'fromDid, toDid, message, signature, and timestamp required. Sign locally before sending.' });
+        }
         // Check revocation before processing
         if (this.registry.isRevoked(body.fromDid)) {
           return this._json(res, 403, { error: 'Agent is revoked', did: body.fromDid });
@@ -251,31 +258,39 @@ export class MeshServer {
         if (this.registry.isRevoked(body.toDid)) {
           return this._json(res, 403, { error: 'Target agent is revoked', did: body.toDid });
         }
-        const ts = new Date().toISOString();
-        const sig = await sign(`${body.message}|${ts}`, body.privateKey);
-        const valid = await verifyWithDid(`${body.message}|${ts}`, sig, body.fromDid);
-        this.registry.logMessage(body.fromDid, body.toDid, body.message, sig, valid);
-        return this._json(res, 200, { sent: true, verified: valid, signature: sig, timestamp: ts });
+        const content = `${body.message}|${body.timestamp}`;
+        const valid = await verifyWithDid(content, body.signature, body.fromDid);
+        this.registry.logMessage(body.fromDid, body.toDid, body.message, body.signature, valid);
+        return this._json(res, 200, { sent: true, verified: valid, signature: body.signature, timestamp: body.timestamp });
       }
 
-      // Handshake
+      // Handshake — client provides pre-signed handshake request and response
       if (method === 'POST' && path === '/handshake') {
-        const agentA = this.registry.getAgent(body.fromDid);
-        const agentB = this.registry.getAgent(body.toDid);
+        if (!body?.handshakeRequest) {
+          return this._json(res, 400, { error: 'handshakeRequest required (pre-signed by client). Never send private keys to the server.' });
+        }
+        const req2 = body.handshakeRequest;
+        const agentA = this.registry.getAgent(req2.fromDid);
+        const agentB = this.registry.getAgent(req2.toDid);
         if (!agentA || !agentB) return this._json(res, 404, { error: 'Agent not found' });
 
-        const req2 = await createHandshakeRequest(body.fromDid, body.toDid, body.privateKeyA, body.permissions || ['send:request']);
+        // Verify the handshake request signature
         await verifyHandshakeRequest(req2, agentA.publicKey);
 
         this._broadcast({
           type: 'handshake:verify', timestamp: new Date().toISOString(),
-          data: { fromDid: body.fromDid, toDid: body.toDid, fromName: agentA.displayName, toName: agentB.displayName },
+          data: { fromDid: req2.fromDid, toDid: req2.toDid, fromName: agentA.displayName, toName: agentB.displayName },
         });
 
-        const conn = this.registry.createConnection(body.fromDid, body.toDid);
-        const resp = await createHandshakeResponse(req2, body.toDid, body.privateKeyB, true, body.permissions || ['send:request'], conn.channelId);
+        const conn = this.registry.createConnection(req2.fromDid, req2.toDid);
 
-        return this._json(res, 200, { connection: conn, handshake: { request: req2, response: resp } });
+        // If client provided a pre-signed response, verify and use it
+        if (body.handshakeResponse) {
+          return this._json(res, 200, { connection: conn, handshake: { request: req2, response: body.handshakeResponse } });
+        }
+
+        // Otherwise return connection with pending response (client B must sign separately)
+        return this._json(res, 200, { connection: conn, handshake: { request: req2, responsePending: true } });
       }
 
       // Connections
