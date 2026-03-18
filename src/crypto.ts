@@ -102,8 +102,7 @@ export function hashPayload(payload: unknown): string {
 }
 
 export function generateNonce(): string {
-  const { randomBytes } = require('node:crypto');
-  return (randomBytes(32) as Buffer).toString('base64');
+  return Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64');
 }
 
 // -- Handshake ---------------------------------------------------------------

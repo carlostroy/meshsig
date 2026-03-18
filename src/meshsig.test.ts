@@ -239,10 +239,14 @@ describe('Server API', () => {
   let port: number;
   let agentA: any;
   let agentB: any;
+  const API_KEY = 'test-key-12345';
+  const auth = { 'Authorization': 'Bearer test-key-12345' };
+  const postAuth = { 'Content-Type': 'application/json', 'Authorization': 'Bearer test-key-12345' };
 
   before(async () => {
     const { MeshServer } = await import('./server.js');
     port = 4900 + Math.floor(Math.random() * 100);
+    process.env.MESHSIG_API_KEY = API_KEY;
     server = new MeshServer({ port, host: '127.0.0.1', dbPath: ':memory:', name: 'test', peers: [] });
     await server.start();
   });
@@ -251,14 +255,14 @@ describe('Server API', () => {
     await server.stop();
   });
 
-  it('GET /health returns ok', async () => {
+it('GET /health returns ok', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/health`);
     const data = await res.json() as any;
     assert.equal(data.status, 'ok');
   });
 
   it('GET /stats returns stats', async () => {
-    const res = await fetch(`http://127.0.0.1:${port}/stats`);
+    const res = await fetch(`http://127.0.0.1:${port}/stats`, { headers: auth });
     const data = await res.json() as any;
     assert.ok('agents' in data);
     assert.ok('uptime' in data);
@@ -266,7 +270,7 @@ describe('Server API', () => {
 
   it('POST /agents/register creates agent', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/agents/register`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: postAuth,
       body: JSON.stringify({ name: 'TestAgent-A', capabilities: [{ type: 'testing', confidence: 0.99 }] }),
     });
     const data = await res.json() as any;
@@ -279,7 +283,7 @@ describe('Server API', () => {
 
   it('POST /agents/register creates second agent', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/agents/register`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: postAuth,
       body: JSON.stringify({ name: 'TestAgent-B', capabilities: [{ type: 'analysis' }] }),
     });
     agentB = await res.json() as any;
@@ -287,20 +291,20 @@ describe('Server API', () => {
   });
 
   it('GET /agents lists agents', async () => {
-    const res = await fetch(`http://127.0.0.1:${port}/agents`);
+    const res = await fetch(`http://127.0.0.1:${port}/agents`, { headers: auth });
     const data = await res.json() as any;
     assert.ok(data.agents.length >= 2);
   });
 
   it('GET /agents/:did returns specific agent', async () => {
-    const res = await fetch(`http://127.0.0.1:${port}/agents/${agentA.record.did}`);
+    const res = await fetch(`http://127.0.0.1:${port}/agents/${agentA.record.did}`, { headers: auth });
     const data = await res.json() as any;
     assert.equal(data.agent.displayName, 'TestAgent-A');
   });
 
   it('POST /messages/send signs and verifies message', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/messages/send`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: postAuth,
       body: JSON.stringify({
         fromDid: agentA.record.did, toDid: agentB.record.did,
         message: 'Hello from test', privateKey: agentA.identity.privateKey,
@@ -315,7 +319,7 @@ describe('Server API', () => {
   it('POST /verify validates signature', async () => {
     const sig = await sign('verify-test', agentA.identity.privateKey);
     const res = await fetch(`http://127.0.0.1:${port}/verify`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: postAuth,
       body: JSON.stringify({ message: 'verify-test', signature: sig, did: agentA.record.did }),
     });
     const data = await res.json() as any;
@@ -324,7 +328,7 @@ describe('Server API', () => {
 
   it('POST /verify rejects bad signature', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/verify`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: postAuth,
       body: JSON.stringify({ message: 'test', signature: 'fake', did: agentA.record.did }),
     });
     const data = await res.json() as any;
@@ -332,7 +336,7 @@ describe('Server API', () => {
   });
 
   it('GET /audit/export returns report', async () => {
-    const res = await fetch(`http://127.0.0.1:${port}/audit/export`);
+    const res = await fetch(`http://127.0.0.1:${port}/audit/export`, { headers: auth });
     const data = await res.json() as any;
     assert.ok(data.meshsig);
     assert.ok(data.summary);
@@ -341,14 +345,14 @@ describe('Server API', () => {
   });
 
   it('GET /messages returns messages', async () => {
-    const res = await fetch(`http://127.0.0.1:${port}/messages`);
+    const res = await fetch(`http://127.0.0.1:${port}/messages`, { headers: auth });
     const data = await res.json() as any;
     assert.ok(data.messages.length >= 1);
   });
 
   it('POST /agents/revoke blocks agent', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/agents/revoke`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: postAuth,
       body: JSON.stringify({ did: agentA.record.did, reason: 'Test revocation' }),
     });
     const data = await res.json() as any;
@@ -357,7 +361,7 @@ describe('Server API', () => {
 
   it('revoked agent cannot send messages', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/messages/send`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: postAuth,
       body: JSON.stringify({
         fromDid: agentA.record.did, toDid: agentB.record.did,
         message: 'Should fail', privateKey: agentA.identity.privateKey,
@@ -377,7 +381,7 @@ describe('Server API', () => {
 
   it('POST /agents/rotate-key rotates key', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/agents/rotate-key`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: postAuth,
       body: JSON.stringify({ did: agentB.record.did, currentPrivateKey: agentB.identity.privateKey }),
     });
     const data = await res.json() as any;
@@ -389,8 +393,8 @@ describe('Server API', () => {
   it('rate limiter returns 429 after limit', async () => {
     // Make many requests quickly
     const promises = [];
-    for (let i = 0; i < 65; i++) {
-      promises.push(fetch(`http://127.0.0.1:${port}/stats`));
+    for (let i = 0; i < 105; i++) {
+      promises.push(fetch(`http://127.0.0.1:${port}/stats`, { headers: auth }));
     }
     const results = await Promise.all(promises);
     const statuses = results.map(r => r.status);

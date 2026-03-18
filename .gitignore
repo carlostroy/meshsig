@@ -9,3 +9,4 @@ identities/
 /opt/meshsig/identities/
 *.pem
 *.key
+identities.compromised.*
