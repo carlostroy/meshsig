@@ -544,7 +544,7 @@ export class MeshServer {
       }
     }
 
-    // If we don't have caller, try to find from identities dir
+    // If we don't have caller, try to find from agents list
     if (!callerDid) {
       // Use first manager as default caller
       const manager = agents.find(a => a.capabilities?.some((c: any) => c.type === 'management' || c.type === 'delegation'));
@@ -554,56 +554,23 @@ export class MeshServer {
       }
     }
 
-    // Sign the delegation
+    // Verify pre-signed delegation if signature provided in request headers
     let signature = '';
     let verified = false;
-    if (callerDid) {
+    const sigHeader = req.headers['x-meshsig-signature'] as string || '';
+    const tsHeader = req.headers['x-meshsig-timestamp'] as string || '';
+
+    if (sigHeader && tsHeader && callerDid) {
       try {
-        // Look for private key in identities
-        const fs = await import('node:fs');
-        const glob = await import('node:path');
-        const idDir = glob.resolve(glob.dirname(this.config.dbPath === ':memory:' ? process.cwd() : this.config.dbPath), '..', 'identities');
-        const files = fs.existsSync(idDir) ? fs.readdirSync(idDir) : [];
-        for (const f of files) {
-          try {
-            const data = JSON.parse(fs.readFileSync(glob.resolve(idDir, f), 'utf-8'));
-            if (data.did === callerDid) {
-              callerKey = data.privateKey;
-              break;
-            }
-          } catch {}
-        }
+        verified = await verifyWithDid(`${message}|${tsHeader}`, sigHeader, callerDid);
+        signature = sigHeader;
 
-        // Also check /opt/meshsig/identities
-        const optDir = '/opt/meshsig/identities';
-        if (!callerKey && fs.existsSync(optDir)) {
-          const optFiles = fs.readdirSync(optDir);
-          for (const f of optFiles) {
-            try {
-              const data = JSON.parse(fs.readFileSync(glob.resolve(optDir, f), 'utf-8'));
-              if (data.did === callerDid) {
-                callerKey = data.privateKey;
-                break;
-              }
-            } catch {}
-          }
-        }
-
-        if (callerKey) {
-          const ts = new Date().toISOString();
-          signature = await sign(`${message}|${ts}`, callerKey);
-          if (callerDid) {
-            verified = await verifyWithDid(`${message}|${ts}`, signature, callerDid);
-          }
-
-          // Log the signed message
-          if (callerDid && targetDid) {
-            this.registry.logMessage(callerDid, targetDid, message, signature, verified);
-          }
+        // Log the verified message
+        if (callerDid && targetDid) {
+          this.registry.logMessage(callerDid, targetDid, message, signature, verified);
         }
       } catch (err: any) {
-        // Signing failed — still forward, just unsigned
-        console.error(`[proxy] signing failed: ${err.message}`);
+        console.error(`[proxy] verification failed: ${err.message}`);
       }
     }
 
