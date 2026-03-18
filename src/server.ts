@@ -5,7 +5,7 @@
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { createServer as createHttpsServer } from 'node:https';
 import { WebSocketServer, WebSocket } from 'ws';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Registry } from './registry.js';
@@ -550,23 +550,23 @@ export class MeshServer {
    * Returns { did, publicKey, privateKey } or null.
    */
   private _findIdentityByName(agentName: string): { did: string; publicKey: string; privateKey: string } | null {
-    const fs = require('node:fs');
-    const path2 = require('node:path');
-    const idDir = path2.resolve(
-      path2.dirname(this.config.dbPath === ':memory:' ? process.cwd() : this.config.dbPath),
+    
+    
+    const idDir = resolve(
+      dirname(this.config.dbPath === ':memory:' ? process.cwd() : this.config.dbPath),
       '..', 'identities'
     );
     const dirs = [idDir, '/opt/meshsig/identities'];
     const nameLower = agentName.toLowerCase().replace(/\s+/g, '-');
 
     for (const dir of dirs) {
-      if (!fs.existsSync(dir)) continue;
-      for (const f of fs.readdirSync(dir)) {
+      if (!existsSync(dir)) continue;
+      for (const f of readdirSync(dir)) {
         // Match: filename contains the agent name (e.g. "agent-antony---gestor..." matches "Antony")
         const fLower = f.toLowerCase();
         if (fLower.includes(nameLower) || nameLower.includes(fLower.replace('.json', '').split('---')[0].replace('agent-', ''))) {
           try {
-            const data = JSON.parse(fs.readFileSync(path2.resolve(dir, f), 'utf-8'));
+            const data = JSON.parse(readFileSync(resolve(dir, f), 'utf-8'));
             if (data.privateKey) return data;
           } catch {}
         }
