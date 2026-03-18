@@ -163,6 +163,14 @@ export class RateLimiter {
   }
 
   getClientIp(req: IncomingMessage): string {
+    // Support trusted proxy headers for accurate client IP detection
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      const first = (typeof forwarded === 'string' ? forwarded : forwarded[0]).split(',')[0].trim();
+      if (first) return first;
+    }
+    const realIp = req.headers['x-real-ip'];
+    if (realIp) return typeof realIp === 'string' ? realIp : realIp[0];
     return req.socket.remoteAddress || 'unknown';
   }
 
