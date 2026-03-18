@@ -62,7 +62,7 @@ fi
 echo -e "  ${G}⬢${R} ${D}CORE${R}     MeshSig online at ${C}$MESH_URL${R}"
 
 # Find OpenClaw clients
-CLIENT_DIR="/root/clients"
+CLIENT_DIR="${CLIENTS_DIR:-/root/clients}"
 if [ ! -d "$CLIENT_DIR" ]; then
   echo -e "  ${Y}▲${R} No OpenClaw clients found at $CLIENT_DIR"
   exit 1

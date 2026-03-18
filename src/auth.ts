@@ -242,6 +242,6 @@ export function validateCapabilities(caps: unknown): { valid: boolean; error?: s
 export function jsonError(res: ServerResponse, status: number, error: string, extra?: Record<string, unknown>): void {
   res.writeHead(status, { 'Content-Type': 'application/json' });
   const body: Record<string, unknown> = { error };
-  if (extra && process.env.NODE_ENV !== 'production') Object.assign(body, extra);
+  if (extra && process.env.NODE_ENV === 'development') Object.assign(body, extra);
   res.end(JSON.stringify(body));
 }

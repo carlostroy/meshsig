@@ -146,7 +146,10 @@ export class MeshServer {
 
       // Dashboard
       if (method === 'GET' && (path === '/' || path === '/dashboard')) {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.writeHead(200, {
+          'Content-Type': 'text/html',
+          'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' ws: wss:; img-src 'self' data:",
+        });
         res.end(this.dashboardHtml);
         return;
       }
