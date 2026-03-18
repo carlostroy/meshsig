@@ -6,6 +6,7 @@
 import { WebSocket } from 'ws';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
+import { verify } from './crypto.js';
 import type { Registry, AgentRecord } from './registry.js';
 
 export interface PeerInfo {
@@ -136,17 +137,33 @@ export class PeerNetwork extends EventEmitter {
     }
   }
 
-  private handlePeerMessage(peer: PeerInfo & { ws: WebSocket }, msg: any): void {
+  private async handlePeerMessage(peer: PeerInfo & { ws: WebSocket }, msg: any): Promise<void> {
     switch (msg.type) {
       case 'peer:announce': {
         peer.name = msg.serverName;
         peer.agents = (msg.agents || []).map((a: any) => a.did);
 
-        // Import remote agents into local registry — this is what makes them
-        // appear on the dashboard. Every agent from every connected server
-        // becomes visible in the unified network view.
+        // Import remote agents into local registry with ownership verification.
+        // Each announced agent must include a proof (signed challenge) to verify
+        // the peer actually controls the private key for the announced DID.
         let imported = 0;
         for (const agent of msg.agents || []) {
+          // Verify ownership proof if provided
+          if (agent.ownershipProof && agent.ownershipChallenge) {
+            try {
+              const valid = await verify(agent.ownershipChallenge, agent.ownershipProof, agent.publicKey);
+              if (!valid) {
+                console.warn(`[peers] rejected agent ${agent.did} from ${peer.url} — invalid ownership proof`);
+                continue;
+              }
+            } catch {
+              console.warn(`[peers] rejected agent ${agent.did} from ${peer.url} — proof verification failed`);
+              continue;
+            }
+          } else {
+            console.warn(`[peers] agent ${agent.did} from ${peer.url} announced without ownership proof — accepting with reduced trust`);
+          }
+
           const existing = this.registry.getAgent(agent.did);
           if (!existing) {
             this.registry.importRemoteAgent({
