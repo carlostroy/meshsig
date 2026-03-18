@@ -251,39 +251,35 @@ export class Registry extends EventEmitter {
    * Rotate an agent's keypair. The DID stays the same but the signing key changes.
    * Requires the current private key to prove ownership.
    */
-  async rotateKey(did: string, currentPrivateKey: string): Promise<{ publicKey: string; privateKey: string; rotatedAt: string } | null> {
+  async rotateKey(did: string, challenge: string, challengeSignature: string, newPublicKey: string): Promise<{ publicKey: string; rotatedAt: string } | null> {
     const agent = this.getAgent(did);
     if (!agent) return null;
 
-    // Verify caller owns the current key by signing a challenge
-    const challenge = `rotate:${did}:${Date.now()}`;
+    // Verify caller owns the current key by verifying the signed challenge
     try {
-      const sig = await sign(challenge, currentPrivateKey);
-      const valid = await verify(challenge, sig, agent.publicKey);
+      const valid = await verify(challenge, challengeSignature, agent.publicKey);
       if (!valid) return null;
     } catch { return null; }
 
-    // Generate new keypair
-    const newIdentity = await generateIdentity();
     const now = new Date().toISOString();
 
     // Log the rotation
     this.db.prepare(`
       INSERT INTO key_rotations (did, old_public_key, new_public_key, rotated_at)
       VALUES (?, ?, ?, ?)
-    `).run(did, agent.publicKey, newIdentity.publicKey, now);
+    `).run(did, agent.publicKey, newPublicKey, now);
 
     // Update agent's public key
     this.db.prepare(`
       UPDATE agents SET public_key = ?, updated_at = ? WHERE did = ?
-    `).run(newIdentity.publicKey, now, did);
+    `).run(newPublicKey, now, did);
 
     this.emit_event('agent:key-rotated', {
       did, oldKeyPrefix: agent.publicKey.slice(0, 12) + '...',
-      newKeyPrefix: newIdentity.publicKey.slice(0, 12) + '...', rotatedAt: now,
+      newKeyPrefix: newPublicKey.slice(0, 12) + '...', rotatedAt: now,
     });
 
-    return { publicKey: newIdentity.publicKey, privateKey: newIdentity.privateKey, rotatedAt: now };
+    return { publicKey: newPublicKey, rotatedAt: now };
   }
 
   // -- Agent Revocation ------------------------------------------------------
