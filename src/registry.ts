@@ -129,27 +129,40 @@ export class Registry extends EventEmitter {
 
   // -- Agents ----------------------------------------------------------------
 
-  async registerAgent(name: string, capabilities: Capability[] = [], meta?: Record<string, unknown>): Promise<{
-    identity: AgentIdentity; record: AgentRecord;
+  async registerAgent(name: string, capabilities: Capability[] = [], meta?: Record<string, unknown>, clientIdentity?: { did: string; publicKey: string }): Promise<{
+    identity: { did: string; publicKey: string }; record: AgentRecord;
   }> {
-    const identity = await generateIdentity();
+    // If client provides their own identity (generated client-side), use it
+    // Otherwise generate server-side (for backward compat, but private key is NOT returned)
+    let did: string;
+    let publicKey: string;
+
+    if (clientIdentity?.did && clientIdentity?.publicKey) {
+      did = clientIdentity.did;
+      publicKey = clientIdentity.publicKey;
+    } else {
+      const generated = await generateIdentity();
+      did = generated.did;
+      publicKey = generated.publicKey;
+      // NOTE: private key is intentionally NOT returned to the client
+    }
+
     const now = new Date().toISOString();
     const id = randomUUID();
 
     this.db.prepare(`
       INSERT INTO agents (id, did, public_key, display_name, capabilities, status, last_seen_at, origin, origin_server, metadata, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, 'active', ?, 'local', '', ?, ?, ?)
-    `).run(id, identity.did, identity.publicKey, name, JSON.stringify(capabilities), now, JSON.stringify(meta || {}), now, now);
+    `).run(id, did, publicKey, name, JSON.stringify(capabilities), now, JSON.stringify(meta || {}), now, now);
 
-    const record = this._rowToAgent(this.db.prepare('SELECT * FROM agents WHERE did = ?').get(identity.did));
+    const record = this._rowToAgent(this.db.prepare('SELECT * FROM agents WHERE did = ?').get(did));
 
     this.emit_event('agent:register', {
-      did: identity.did, name, capabilities,
-      publicKey: identity.publicKey,
-      origin: 'local',
+      did, name, capabilities, publicKey, origin: 'local',
     });
 
-    return { identity, record };
+    // Return only public identity — never expose private key
+    return { identity: { did, publicKey }, record };
   }
 
   /**

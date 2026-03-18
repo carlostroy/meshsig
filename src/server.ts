@@ -152,13 +152,14 @@ export class MeshServer {
         return this._json(res, 200, this.registry.snapshot());
       }
 
-      // Register agent
+      // Register agent — client should provide their own DID and public key (generated locally)
       if (method === 'POST' && path === '/agents/register') {
         const nameCheck = validateAgentName(body?.name);
         if (!nameCheck.valid) return this._json(res, 400, { error: nameCheck.error });
         const capsCheck = validateCapabilities(body?.capabilities);
         if (!capsCheck.valid) return this._json(res, 400, { error: capsCheck.error });
-        const result = await this.registry.registerAgent(nameCheck.sanitized!, capsCheck.sanitized || []);
+        const clientIdentity = (body?.did && body?.publicKey) ? { did: body.did, publicKey: body.publicKey } : undefined;
+        const result = await this.registry.registerAgent(nameCheck.sanitized!, capsCheck.sanitized || [], undefined, clientIdentity);
         return this._json(res, 201, result);
       }
 
