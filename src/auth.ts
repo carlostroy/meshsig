@@ -55,6 +55,14 @@ const PUBLIC_ROUTES: Array<{ method: string; path: string | RegExp }> = [
   { method: 'POST', path: '/verify' },
   { method: 'GET', path: '/revoked' },
   { method: 'OPTIONS', path: /.*/ },
+  // Dashboard data routes (read-only, same access level as dashboard page)
+  { method: 'GET', path: '/agents' },
+  { method: 'GET', path: '/messages' },
+  { method: 'GET', path: '/connections' },
+  { method: 'GET', path: '/stats' },
+  { method: 'GET', path: '/snapshot' },
+  { method: 'GET', path: '/peers' },
+  { method: 'GET', path: '/audit/export' },
   // Proxy routes — gateway handles its own auth via x-api-secret
   { method: 'POST', path: '/invoke-agent' },
   { method: 'POST', path: '/invoke-team' },
