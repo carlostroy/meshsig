@@ -10,8 +10,8 @@ import {
   generateIdentity, sign, verify, verifyWithDid, isValidDid,
   hashPayload, generateNonce, didToPublicKey,
   createHandshakeRequest, verifyHandshakeRequest, createHandshakeResponse,
+  type AgentIdentity,
 } from './crypto.js';
-import type { AgentIdentity } from './crypto.js';
 
 // ============================================================================
 // 1. IDENTITY
@@ -278,7 +278,8 @@ it('GET /health returns ok', async () => {
     assert.equal(res.status, 201);
     assert.ok(data.record.did.startsWith('did:msig:'));
     assert.equal(data.record.displayName, 'TestAgent-A');
-    assert.ok(data.identity.privateKey);
+    assert.ok(data.identity.publicKey);
+    assert.ok(data.identity.did);
   });
 
   it('POST /agents/register creates second agent', async () => {
@@ -302,12 +303,23 @@ it('GET /health returns ok', async () => {
     assert.equal(data.agent.displayName, 'TestAgent-A');
   });
 
-  it('POST /messages/send signs and verifies message', async () => {
+  it('POST /messages/send verifies pre-signed message', async () => {
+    // Generate identity locally to have private key for signing
+    const localId = await generateIdentity();
+    // Register with server
+    const regRes = await fetch(`http://127.0.0.1:${port}/agents/register`, {
+      method: 'POST', headers: postAuth,
+      body: JSON.stringify({ name: 'Signer', capabilities: [], did: localId.did, publicKey: localId.publicKey }),
+    });
+    await regRes.json();
+    // Sign locally and send
+    const ts = new Date().toISOString();
+    const sig = await sign(`Hello from test|${ts}`, localId.privateKey);
     const res = await fetch(`http://127.0.0.1:${port}/messages/send`, {
       method: 'POST', headers: postAuth,
       body: JSON.stringify({
-        fromDid: agentA.record.did, toDid: agentB.record.did,
-        message: 'Hello from test', privateKey: agentA.identity.privateKey,
+        fromDid: localId.did, toDid: agentB.record.did,
+        message: 'Hello from test', signature: sig, timestamp: ts,
       }),
     });
     const data = await res.json() as any;
@@ -352,7 +364,7 @@ it('GET /health returns ok', async () => {
 
   it('POST /agents/revoke blocks agent', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/agents/revoke`, {
-      method: 'POST', headers: postAuth,
+      method: 'POST', headers: { ...postAuth, 'x-admin-key': 'test' },
       body: JSON.stringify({ did: agentA.record.did, reason: 'Test revocation' }),
     });
     const data = await res.json() as any;
@@ -360,11 +372,12 @@ it('GET /health returns ok', async () => {
   });
 
   it('revoked agent cannot send messages', async () => {
+    const ts = new Date().toISOString();
     const res = await fetch(`http://127.0.0.1:${port}/messages/send`, {
       method: 'POST', headers: postAuth,
       body: JSON.stringify({
         fromDid: agentA.record.did, toDid: agentB.record.did,
-        message: 'Should fail', privateKey: agentA.identity.privateKey,
+        message: 'Should fail', signature: 'fake', timestamp: ts,
       }),
     });
     assert.equal(res.status, 403);
@@ -380,14 +393,31 @@ it('GET /health returns ok', async () => {
   });
 
   it('POST /agents/rotate-key rotates key', async () => {
+    // Generate a new identity for agent B locally to have the private key
+    const localB = await generateIdentity();
+    // Register this agent
+    const regRes = await fetch(`http://127.0.0.1:${port}/agents/register`, {
+      method: 'POST', headers: postAuth,
+      body: JSON.stringify({ name: 'RotateTest', capabilities: [], did: localB.did, publicKey: localB.publicKey }),
+    });
+    await regRes.json();
+    // Create challenge and sign it with current key
+    const challenge = `rotate:${localB.did}:${Date.now()}`;
+    const challengeSig = await sign(challenge, localB.privateKey);
+    // Generate new keypair
+    const newId = await generateIdentity();
     const res = await fetch(`http://127.0.0.1:${port}/agents/rotate-key`, {
       method: 'POST', headers: postAuth,
-      body: JSON.stringify({ did: agentB.record.did, currentPrivateKey: agentB.identity.privateKey }),
+      body: JSON.stringify({
+        did: localB.did,
+        challenge,
+        challengeSignature: challengeSig,
+        newPublicKey: newId.publicKey,
+      }),
     });
     const data = await res.json() as any;
     assert.equal(data.message, 'Key rotated successfully');
-    assert.ok(data.newPublicKey);
-    assert.notEqual(data.newPublicKey, agentB.identity.publicKey);
+    assert.equal(data.newPublicKey, newId.publicKey);
   });
 
   it('rate limiter returns 429 after limit', async () => {

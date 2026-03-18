@@ -4,6 +4,7 @@
 // ============================================================================
 
 import type { MeshServer } from './server.js';
+import { generateIdentity, sign } from './crypto.js';
 import type { AgentIdentity } from './crypto.js';
 
 interface DemoAgent {
@@ -51,10 +52,16 @@ export async function runDemo(server: MeshServer): Promise<void> {
     const agent = DEMO_AGENTS[i];
     await sleep(1500);
 
-    const { identity } = await server.registry.registerAgent(agent.name, agent.capabilities);
-    agent.identity = identity;
+    // Generate full identity locally (with private key for demo signing)
+    const fullIdentity = await generateIdentity();
+    // Register with server using only public identity
+    await server.registry.registerAgent(agent.name, agent.capabilities, undefined, {
+      did: fullIdentity.did,
+      publicKey: fullIdentity.publicKey,
+    });
+    agent.identity = fullIdentity;
     agents.set(agent.name, agent);
-    identities.set(agent.name, identity);
+    identities.set(agent.name, fullIdentity);
 
     const caps = agent.capabilities.map(c => c.type).join(', ');
     console.log(`  🟢 ${agent.name} joined — ${caps}`);
@@ -97,7 +104,6 @@ export async function runDemo(server: MeshServer): Promise<void> {
     const fromId = identities.get(msg.from)!;
     const toId = identities.get(msg.to)!;
 
-    const { sign } = await import('./crypto.js');
     const ts = new Date().toISOString();
     const sig = await sign(`${msg.msg}|${ts}`, fromId.privateKey);
 
@@ -124,7 +130,6 @@ export async function runDemo(server: MeshServer): Promise<void> {
     const toId = identities.get(msg.to);
     if (!fromId || !toId) return;
 
-    const { sign } = await import('./crypto.js');
     const ts = new Date().toISOString();
     const sig = await sign(`${msg.msg}|${ts}`, fromId.privateKey);
     server.registry.logMessage(fromId.did, toId.did, msg.msg, sig, true);
