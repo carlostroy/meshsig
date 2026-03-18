@@ -105,8 +105,9 @@ export function checkWsAuth(req: IncomingMessage, config: AuthConfig): boolean {
 
 export function setCorsHeaders(res: ServerResponse, req: IncomingMessage, config: AuthConfig): void {
   const origin = req.headers['origin'] || '';
+  const SAFE_LOCAL_ORIGINS = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
   if (config.corsOrigins.length === 0) {
-    if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+    if (origin && SAFE_LOCAL_ORIGINS.test(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
     }
   } else {
