@@ -245,6 +245,10 @@ export class MeshServer {
         if (!body?.message || !body?.signature || !body?.did || !body?.timestamp) {
           return this._json(res, 400, { error: 'message, signature, did, and timestamp required. Sign locally using: meshsig sign <message>' });
         }
+        // Check for replay attacks
+        if (!this.replayGuard.check(body.signature)) {
+          return this._json(res, 409, { error: 'Replay detected — this signature has already been submitted' });
+        }
         // Verify the provided signature is valid
         const content = `${body.message}|${body.timestamp}`;
         const valid = await verifyWithDid(content, body.signature, body.did);
@@ -270,6 +274,10 @@ export class MeshServer {
         }
         if (this.registry.isRevoked(body.toDid)) {
           return this._json(res, 403, { error: 'Target agent is revoked', did: body.toDid });
+        }
+        // Check for replay attacks
+        if (!this.replayGuard.check(body.signature)) {
+          return this._json(res, 409, { error: 'Replay detected — this signature has already been submitted' });
         }
         const content = `${body.message}|${body.timestamp}`;
         const valid = await verifyWithDid(content, body.signature, body.fromDid);
