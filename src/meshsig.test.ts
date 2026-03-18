@@ -329,10 +329,17 @@ it('GET /health returns ok', async () => {
   });
 
   it('POST /verify validates signature', async () => {
-    const sig = await sign('verify-test', agentA.identity.privateKey);
+    // Use a locally-generated identity for signing
+    const localId = await generateIdentity();
+    const regRes = await fetch(`http://127.0.0.1:${port}/agents/register`, {
+      method: 'POST', headers: postAuth,
+      body: JSON.stringify({ name: 'VerifyTest', capabilities: [], did: localId.did, publicKey: localId.publicKey }),
+    });
+    await regRes.json();
+    const sig = await sign('verify-test', localId.privateKey);
     const res = await fetch(`http://127.0.0.1:${port}/verify`, {
       method: 'POST', headers: postAuth,
-      body: JSON.stringify({ message: 'verify-test', signature: sig, did: agentA.record.did }),
+      body: JSON.stringify({ message: 'verify-test', signature: sig, did: localId.did }),
     });
     const data = await res.json() as any;
     assert.ok(data.valid);
