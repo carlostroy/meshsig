@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" width="280" alt="MeshSig Logo">
+  <img src="assets/meshsig-logo.png" width="400" alt="MeshSig Logo">
 </p>
 
 <p align="center">
