@@ -492,5 +492,5 @@ MIT
 
 <p align="center">
   <strong>MeshSig</strong> — Cryptographic security layer for AI agents.<br>
-  <a href="https://meshsig.ai">meshsig.ai</a> · <a href="https://github.com/carlostroy/meshsig">GitHub</a>
+  <a href="https://meshsig.dev">meshsig.dev</a> · <a href="https://github.com/carlostroy/meshsig">GitHub</a>
 </p>
