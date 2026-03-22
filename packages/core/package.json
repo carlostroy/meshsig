@@ -1,15 +1,23 @@
 {
   "name": "@meshsig/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cryptographic security layer for AI agents. Verify instruction origin before execution.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "license": "MIT",
   "keywords": [
-    "ai-agents", "cryptography", "ed25519", "did", "security",
-    "prompt-injection", "agent-security", "langchain", "crewai",
-    "openclaw", "meshsig"
+    "ai-agents",
+    "cryptography",
+    "ed25519",
+    "did",
+    "security",
+    "prompt-injection",
+    "agent-security",
+    "langchain",
+    "crewai",
+    "openclaw",
+    "meshsig"
   ],
   "repository": {
     "type": "git",
@@ -18,7 +26,10 @@
   },
   "homepage": "https://meshsig.ai",
   "author": "MeshSig",
-  "files": ["dist/", "README.md"],
+  "files": [
+    "dist/",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build"
