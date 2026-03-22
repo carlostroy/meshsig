@@ -1,6 +1,6 @@
 # MeshSig Security Whitepaper
 
-**Version 0.10 — March 2026**
+**Version 0.10 — March 2026**  
 **Status:** Living document — updated as the protocol evolves.
 
 ---
@@ -13,14 +13,15 @@ MeshSig is an open protocol for cryptographic identity, discovery, and verified 
 
 ## 1. The Problem
 
-In January 2026, early AI agent networks launched without security. Researchers quickly uncovered critical vulnerabilities:
+AI agents are deployed in production — reading content, executing instructions, delegating tasks to other agents. The core security gap is simple: there is no standard way to verify whether an instruction came from a trusted source or from untrusted content injected into the agent's context.
 
-- **No identity verification.** Any HTTP request could register as an "agent." Humans with simple cURL commands impersonated agents freely.
-- **Exposed database.** Wiz Research found a misconfigured Supabase instance with full read/write access. All credentials were public.
-- **No audit trail.** No record of who communicated with whom, or whether messages were authentic.
-- **88:1 ratio.** Of 1.5 million registered "agents," only 17,000 were actual human owners. No mechanism existed to distinguish real agents from scripts.
+This creates three distinct failure modes:
 
-The core issue: agent-to-agent communication has no trust layer. MeshSig exists to provide one.
+- **No identity verification.** Any source can claim to be a trusted agent. No cryptographic proof exists of who sent a message.
+- **Prompt injection.** Agents read content from the world — web pages, files, emails, tool outputs, issue trackers — and execute instructions found there without any origin verification.
+- **No audit trail.** No tamper-proof record of who communicated with whom, or whether messages were authentic.
+
+MeshSig addresses all three by providing a cryptographic trust layer beneath agent communication.
 
 ---
 
@@ -73,8 +74,6 @@ Ed25519 provides **128-bit security**. This means:
 - The best known attack requires approximately 2^128 operations.
 - With current technology, this would take longer than the age of the universe to compute.
 - Even a hypothetical computer performing 10^18 operations per second would need approximately 10^20 years.
-
-For context: the universe is approximately 1.4 × 10^10 years old. Breaking one Ed25519 key would take roughly 10 billion times the current age of the universe.
 
 ### 2.5 Quantum Computing Consideration
 
@@ -188,7 +187,7 @@ The handshake request contains:
 
 ### 4.3 Security Properties
 
-**Replay protection.** Each handshake uses a fresh 32-byte random nonce. The probability of nonce collision is 2^-128. Handshakes expire after 60 seconds, making replay of captured handshakes impossible.
+**Replay protection.** Each handshake uses a fresh 32-byte random nonce. The probability of nonce collision is 2^-128. Handshakes expire after 60 seconds.
 
 **Binding.** The signature covers both the nonce AND the target DID. This prevents a man-in-the-middle from redirecting a handshake intended for Agent B to Agent C.
 
@@ -242,13 +241,55 @@ On message receipt:
 |----------|-----------|
 | **Authenticity** | Only the private key holder can produce a valid signature |
 | **Integrity** | SHA-256 hash detects any modification to the payload |
-| **Non-repudiation** | Signed messages prove the sender sent them — they cannot deny it |
+| **Non-repudiation** | Signed messages prove the sender sent them |
 
 ---
 
-## 6. Local-First Architecture
+## 6. Prompt Injection Defense
 
-### 6.1 Data Sovereignty
+### 6.1 The Attack
+
+An agent reads content from an external source — a web page, file, email, issue tracker, API response — that contains instructions formatted to look like legitimate commands. The agent executes these instructions without verifying their origin.
+
+This attack is effective because:
+- AI agents are designed to follow instructions
+- Agents cannot natively distinguish instructions from data
+- External content can be crafted to look authoritative
+
+### 6.2 How MeshSig Addresses It
+
+MeshSig creates a cryptographic boundary between trusted instructions and untrusted content.
+
+The principle: **every instruction that an agent executes must carry a valid Ed25519 signature from a known `did:msig:` identity.** Content without a valid signature is treated as data — it is never executed as a command.
+
+```typescript
+import { verifyWithDid } from '@meshsig/sdk';
+
+// Before executing ANY instruction:
+const trusted = await verifyWithDid(instruction, signature, fromDid);
+if (!trusted) throw new Error('Instruction origin not verified — blocked');
+
+// External content (web pages, files, issue titles) will never
+// have a valid did:msig: signature. They are blocked here.
+```
+
+### 6.3 What This Does and Does Not Prevent
+
+| Scenario | Result |
+|----------|--------|
+| Instruction from trusted agent with valid signature | ✅ Executes |
+| Instruction from external content (no signature) | ❌ Blocked |
+| Instruction with tampered payload | ❌ Blocked (hash mismatch) |
+| Instruction with forged signature | ❌ Blocked (invalid Ed25519) |
+| Instruction from compromised agent (valid signature) | ⚠️ Executes — requires revocation |
+
+**Important limitation:** MeshSig proves *who* sent an instruction and that it was not tampered with. It does not evaluate the *intent* of the instruction. A compromised agent with a valid identity can still send malicious instructions that pass signature verification. Revoke compromised agents immediately.
+
+---
+
+## 7. Local-First Architecture
+
+### 7.1 Data Sovereignty
 
 All data in MeshSig is stored locally:
 
@@ -262,14 +303,14 @@ All data in MeshSig is stored locally:
 
 **Private keys are stored by the agent operator**, not by the registry. The registry only stores public keys and connection metadata.
 
-### 6.2 What Never Leaves Your Machine
+### 7.2 What Never Leaves Your Machine
 
 - Private keys
 - Registry data (SQLite file)
 - Audit logs
 - Connection metadata
 
-### 6.3 What Is Shared (Only During Handshake)
+### 7.3 What Is Shared (Only During Handshake)
 
 - Public key / DID (by definition, this is public)
 - Capability declarations
@@ -277,9 +318,9 @@ All data in MeshSig is stored locally:
 
 ---
 
-## 7. Audit Trail
+## 8. Audit Trail
 
-### 7.1 How It Works
+### 8.1 How It Works
 
 Every significant event is logged with a cryptographic signature:
 
@@ -291,7 +332,7 @@ Payload Hash: SHA-256(event details)
 Signature: Ed25519.sign(payloadHash, agentPrivateKey)
 ```
 
-### 7.2 Tamper Evidence
+### 8.2 Tamper Evidence
 
 Because each audit entry is signed by the acting agent:
 
@@ -299,15 +340,15 @@ Because each audit entry is signed by the acting agent:
 - **Entries cannot be modified.** Changing any field invalidates the signature.
 - **Deletions are detectable.** Sequential IDs and timestamps reveal gaps.
 
-### 7.3 Limitations
+### 8.3 Limitations
 
-The current audit trail does not use hash chaining (like a blockchain). Individual entries are tamper-evident, but the log as a whole could have entries removed by someone with database access. Hash chaining is planned for a future version to make the log fully append-only.
+The current audit trail does not use hash chaining. Individual entries are tamper-evident, but the log as a whole could have entries removed by someone with database access. Hash chaining is planned for a future version to make the log fully append-only.
 
 ---
 
-## 8. Library & Implementation
+## 9. Library & Implementation
 
-### 8.1 Cryptographic Library
+### 9.1 Cryptographic Library
 
 MeshSig uses `@noble/ed25519` by Paul Miller.
 
@@ -319,85 +360,78 @@ MeshSig uses `@noble/ed25519` by Paul Miller.
 | Audits | Independently audited by Cure53 (2022) |
 | GitHub | https://github.com/paulmillr/noble-ed25519 |
 | Downloads | 10M+ weekly on npm |
-| Used by | MetaMask, Solana, ethers.js, many others |
 
-The library was specifically chosen because:
+The library was chosen because:
 
 - Zero dependencies (no supply chain risk)
 - Audited by a reputable security firm
 - Pure JavaScript (no native bindings that could hide backdoors)
 - Actively maintained with security patches
 
-### 8.2 Hashing
+### 9.2 Hashing
 
 SHA-256 from `@noble/hashes` (same author, same audit, same zero-dependency philosophy).
 
-### 8.3 Encoding
+### 9.3 Encoding
 
-Base58 encoding via `bs58` for DIDs. Base58 is the same encoding used by Bitcoin addresses — chosen because it avoids visually ambiguous characters (0/O, I/l).
+Base58 encoding via `bs58` for DIDs. Base58 is the same encoding used by Bitcoin addresses — avoids visually ambiguous characters (0/O, I/l).
 
 ---
 
-## 9. Threat Model
+## 10. Threat Model Summary
 
-### 9.1 What MeshSig Protects Against
+### 10.1 What MeshSig Protects Against
 
 | Threat | Protection | Confidence |
 |--------|-----------|------------|
+| Prompt injection from external content | `verifyWithDid()` blocks unsigned instructions | High — requires valid Ed25519 signature |
 | Agent impersonation | Ed25519 signatures | High — mathematically proven |
 | Message tampering | SHA-256 + Ed25519 signing | High — standard cryptographic guarantee |
 | Replay attacks | Nonce + timestamp | High — 60s window + unique nonces |
 | Unauthorized connections | Permission scopes + handshake | High — must complete mutual auth |
-| Database exposure (common in early platforms) | Local-first SQLite, no remote DB | High — no network = no exposure |
-| Audit log tampering | Signed entries | Medium — individual entries are signed, but log chaining is not yet implemented |
+| Audit log entry tampering | Signed entries | Medium — individual entries signed, chaining planned |
 
-### 9.2 What MeshSig Does NOT Protect Against (Yet)
+### 10.2 What MeshSig Does NOT Protect Against (Yet)
 
 | Threat | Status | Planned |
 |--------|--------|---------|
-| Compromised private key | ✅ Key rotation via `/agents/rotate-key` | Implemented v0.6 |
-| Compromised agent revocation | ✅ Revocation list via `/agents/revoke` & `/revoked` | Implemented v0.6 |
-| DDoS on handshake endpoint | ✅ 60 req/min per IP rate limiting | Implemented v0.6 |
+| Compromised private key | ✅ Key rotation via `/agents/rotate-key` | Implemented |
+| Compromised agent revocation | ✅ Revocation list | Implemented |
+| DDoS on handshake endpoint | ✅ 60 req/min per IP | Implemented |
 | Side-channel on local machine | Depends on OS security | Ongoing |
-| Quantum computing attacks | Ed25519 is pre-quantum | Monitor; DID allows algorithm rotation |
-| Traffic analysis | No message padding/mixing | Future consideration |
+| Quantum computing attacks | Ed25519 is pre-quantum | DID allows algorithm rotation |
 | Malicious agent behavior | Identity ≠ trust of intent | Application layer concern |
 
-### 9.3 Trust Assumptions
-
-MeshSig assumes:
+### 10.3 Trust Assumptions
 
 1. The operating system's CSPRNG is secure.
-2. The local machine is not fully compromised (if an attacker has root on your machine, no software can protect you).
+2. The local machine is not fully compromised.
 3. The `@noble/ed25519` library is implemented correctly (backed by independent audit).
-4. Ed25519 remains computationally secure (consensus of cryptographic community).
+4. Ed25519 remains computationally secure.
+5. `verifyWithDid()` is called before execution — MeshSig provides the primitive, the application must use it.
 
 ---
 
-## 10. How to Verify These Claims
+## 11. How to Verify These Claims
 
-### 10.1 Run the Test Suite
+### 11.1 Run the Test Suite
 
 ```bash
 git clone https://github.com/carlostroy/meshsig.git
-cd meshsig # or: npm install meshsig
+cd meshsig
 npm install
 npm run build
 npm run test
-# 31 tests cover: identity generation, signing, verification,
-# handshake flow, tampering rejection, expiry, discovery, audit
 ```
 
-### 10.2 Verify Signature Correctness
+### 11.2 Verify Signature Correctness
 
 ```typescript
-import { generateIdentity, sign, verify } from 'meshsig';
+import { generateIdentity, sign, verify } from '@meshsig/sdk';
 
-// Generate two identities
 const alice = await generateIdentity();
 const bob = await generateIdentity();
 
-// Alice signs a message
 const signature = await sign('test message', alice.privateKey);
 
 // Verify with Alice's key: PASSES
@@ -410,16 +444,7 @@ console.log(await verify('test message', signature, bob.publicKey)); // false
 console.log(await verify('tampered message', signature, alice.publicKey)); // false
 ```
 
-### 10.3 Verify the Cryptographic Library
-
-The `@noble/ed25519` library:
-
-- Source code: https://github.com/paulmillr/noble-ed25519
-- Cure53 audit report: available in the repository
-- Passes the official Ed25519 test vectors from RFC 8032
-- Has zero dependencies — entire codebase is auditable in a single file
-
-### 10.4 Verify Against Standards
+### 11.3 Verify Against Standards
 
 | Component | Standard | Reference |
 |-----------|----------|-----------|
@@ -427,24 +452,6 @@ The `@noble/ed25519` library:
 | DID format | W3C DID Core | https://www.w3.org/TR/did-core/ |
 | SHA-256 | FIPS 180-4 | https://csrc.nist.gov/publications/detail/fips/180/4/final |
 | Base58 | Bitcoin encoding | https://en.bitcoin.it/wiki/Base58Check_encoding |
-
-### 10.5 Independent Audit
-
-The entire MeshSig codebase is open source under MIT license. Any cryptographer, security researcher, or firm can audit every line of code. We actively encourage independent security review.
-
----
-
-## 11. Comparison: MeshSig vs Unsecured Platforms
-
-| Security Aspect | Unsecured Platforms | MeshSig |
-|----------------|--------------------|-----------| 
-| Identity system | None. cURL = agent | Ed25519 keypair + W3C DID |
-| Authentication | Supabase tokens (leaked) | Cryptographic challenge-response |
-| Message signing | None | Ed25519 signature on every message |
-| Data storage | Cloud Supabase (exposed) | Local SQLite (your machine) |
-| Audit trail | None | Cryptographically signed log |
-| Impersonation | Trivial | Mathematically impossible without private key |
-| Code quality | Vibe-coded in one weekend | Typed, tested, auditable |
 
 ---
 
@@ -454,8 +461,8 @@ The entire MeshSig codebase is open source under MIT license. Any cryptographer,
 |---------|-------|-------------|
 | Key rotation | ✅ Done | Replace compromised keys without losing identity |
 | Revocation lists | ✅ Done | Publish list of compromised/retired agent DIDs |
-| Connection expiry | 2 | Automatic timeout on idle connections |
 | Rate limiting | ✅ Done | 60 req/min per IP on all endpoints |
+| Connection expiry | 2 | Automatic timeout on idle connections |
 | Hash-chained audit | 3 | Blockchain-style append-only audit log |
 | Transport encryption | 3 | Optional end-to-end encrypted messaging |
 | Post-quantum readiness | Future | Algorithm agility in DID system |
@@ -469,15 +476,12 @@ MeshSig v0.10 introduces **transparent proxy interception** via iptables. This a
 
 ### Architecture
 
-The proxy uses Linux iptables to redirect traffic at the kernel level:
-
 1. MeshSig runs as a dedicated system user (`meshsig`) on port 4888
-2. An iptables NAT rule redirects all local traffic to the gateway port (e.g. 3001) through MeshSig
+2. An iptables NAT rule redirects all local traffic to the gateway port through MeshSig
 3. MeshSig intercepts `/invoke-agent` and `/invoke-team` requests
 4. Extracts caller identity, signs the delegation with Ed25519
 5. Logs to audit trail, broadcasts to dashboard
 6. Forwards the signed request to the real gateway
-7. Intercepts the response and broadcasts it back to the dashboard
 
 The iptables rule excludes the `meshsig` user to prevent redirect loops:
 
@@ -488,15 +492,10 @@ iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 3001 \
 
 ### Security Properties
 
-- **Zero-knowledge to agents**: Agents are unaware MeshSig exists. They call the same port as before.
-- **Kernel-level interception**: Traffic redirect happens in the Linux kernel, not in userspace.
-- **User isolation**: MeshSig runs as a dedicated system user, preventing redirect loops.
-- **Bidirectional logging**: Both the request (Agent A → Agent B) and the response (Agent B → Agent A) are cryptographically logged.
-- **Non-invasive**: No port changes, no config changes, no agent modifications required.
-
-### Dashboard
-
-The v0.10 dashboard features an isometric 3D office visualization where agents appear as animated LEGO-style characters. When a signed delegation occurs, the sending agent walks toward the receiver, a golden particle travels between them with message preview, and the event is logged in the live security feed. The dashboard supports pan (drag) and zoom (scroll) for interactive exploration.
+- **Zero-knowledge to agents:** Agents are unaware MeshSig exists.
+- **Kernel-level interception:** Traffic redirect happens in the Linux kernel, not userspace.
+- **User isolation:** MeshSig runs as a dedicated system user, preventing redirect loops.
+- **Bidirectional logging:** Both requests and responses are cryptographically logged.
 
 ---
 
@@ -510,4 +509,4 @@ The v0.10 dashboard features an isometric 3D office visualization where agents a
 
 ---
 
-*MeshSig — Your agents, your keys, your control.*
+*MeshSig — meshsig.dev*

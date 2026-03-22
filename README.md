@@ -14,11 +14,12 @@
 
 <p align="center">
   <strong>Cryptographic security layer for AI agents.</strong><br>
-  <em>Identity · Signed Messages · Verified Handshakes · Trust Scoring</em>
+  <em>Identity · Signed Messages · Verified Handshakes · Prompt Injection Defense · Trust Scoring</em>
 </p>
 
 <p align="center">
   <a href="https://meshsig.dev">meshsig.dev</a> ·
+  <a href="#meshsig-sdk">SDK</a> ·
   <a href="#cli">CLI</a> ·
   <a href="#dashboard">Dashboard</a> ·
   <a href="#mcp-server">MCP</a> ·
@@ -33,24 +34,116 @@
 
 MeshSig gives every AI agent a **cryptographic identity** and secures every agent-to-agent communication with **Ed25519 digital signatures**.
 
+The core problem: AI agents read content from the world — web pages, files, messages, tool outputs — and execute instructions found there. There is no standard way to verify whether an instruction came from a trusted source or from malicious content injected into the agent's context.
+
+MeshSig fixes this. Every instruction an agent executes can be verified against a cryptographic signature from a known `did:msig:` identity. No valid signature — no execution.
+
 When Agent A sends a task to Agent B, MeshSig:
 - Signs the message with Agent A's private key
 - Verifies the signature mathematically before delivery
-- Logs the interaction with tamper-proof audit trail
+- Logs the interaction with a tamper-proof audit trail
 - Updates trust scores based on verified history
 
 No one can impersonate an agent. No one can tamper with a message. Every interaction has cryptographic proof.
 
-## Quick Start
+---
 
-**Use directly (no install):**
+## @meshsig/sdk
+
+The core SDK. Use it to add instruction verification to any agent — custom, framework-based, or agentic pipeline.
+
+```bash
+npm install @meshsig/sdk
+```
+
+```typescript
+import { generateIdentity, sign, verifyWithDid } from '@meshsig/sdk';
+
+// Every agent gets a cryptographic identity
+const agent = await generateIdentity();
+console.log(agent.did); // did:msig:3icqQkmJWby4S5rpaSRoCcKvjKWdTvqViy...
+
+// Sign instructions at the trusted source
+const signature = await sign('deploy to production', agent.privateKey);
+
+// Before executing ANY instruction — verify origin
+const trusted = await verifyWithDid('deploy to production', signature, agent.did);
+if (!trusted) throw new Error('Instruction origin not verified — blocked');
+```
+
+### Middleware pattern
+
+Drop this before any tool call in your agent:
+
+```typescript
+import { verifyWithDid, MeshError } from '@meshsig/sdk';
+
+async function safeExecute(instruction: string, signature: string, fromDid: string) {
+  const trusted = await verifyWithDid(instruction, signature, fromDid);
+  if (!trusted) throw new MeshError('Untrusted instruction', 'INVALID_SIGNATURE', 401);
+  // safe to execute
+}
+```
+
+### Handshake between agents
+
+```typescript
+import {
+  createHandshakeRequest,
+  verifyHandshakeRequest,
+  createHandshakeResponse,
+} from '@meshsig/sdk';
+
+// Agent A initiates
+const request = await createHandshakeRequest(
+  agentA.did, agentB.did, agentA.privateKey, ['execute:task']
+);
+
+// Agent B verifies and responds
+await verifyHandshakeRequest(request, agentB.publicKey);
+const response = await createHandshakeResponse(
+  request, agentB.did, agentB.privateKey, true, ['execute:task'], channelId
+);
+```
+
+### SDK API
+
+**Identity**
+- `generateIdentity()` → `AgentIdentity` — Ed25519 keypair + `did:msig:` DID
+- `isValidDid(did)` → `boolean`
+- `didToPublicKey(did)` → `Uint8Array`
+
+**Signing & Verification**
+- `sign(message, privateKey)` → `signature`
+- `verify(message, signature, publicKey)` → `boolean`
+- `verifyWithDid(message, signature, did)` → `boolean`
+- `hashPayload(payload)` → `hex`
+- `generateNonce()` → `string`
+
+**Handshake**
+- `createHandshakeRequest(fromDid, toDid, privateKey, permissions)`
+- `verifyHandshakeRequest(request, publicKey)`
+- `createHandshakeResponse(request, did, privateKey, accepted, permissions, channelId)`
+- `verifyHandshakeResponse(response, request, publicKey)`
+
+**Security Utilities**
+- `RateLimiter` — per-IP rate limiting
+- `ReplayGuard` — prevent signature replay attacks
+- `validateAgentName(name)` — sanitize agent names
+- `validateCapabilities(caps)` — sanitize capability lists
+
+---
+
+## Quick Start (Full Server)
+
 ```bash
 npx meshsig init        # Generate Ed25519 identity
 npx meshsig sign "msg"  # Sign a message
 npx meshsig start       # Start the server + dashboard
 ```
 
-**Or install globally:**
+Or install globally:
+
 ```bash
 npm install -g meshsig
 meshsig start
@@ -61,13 +154,10 @@ meshsig start
 MeshSig can transparently intercept all agent-to-agent traffic. **Zero changes to your agents or gateway.**
 
 ```bash
-# One command. Your agents keep calling the same port.
 bash scripts/deploy-proxy.sh 3001
 ```
 
-That's it. MeshSig intercepts traffic to port 3001, signs every message with Ed25519, and forwards it to the real gateway. Your agents don't know MeshSig exists.
-
-**How it works:**
+MeshSig intercepts traffic to port 3001, signs every message with Ed25519, and forwards it to the real gateway.
 
 ```
 WITHOUT MESHSIG:
@@ -79,14 +169,14 @@ WITH MESHSIG:
                                         Dashboard + Audit
 ```
 
-Uses iptables to redirect traffic transparently. No port changes. No config changes. Works with any framework — OpenClaw, LangChain, CrewAI, AutoGen, or any HTTP-based agent system.
+To remove:
 
-**To remove:**
 ```bash
 bash scripts/deploy-proxy.sh --remove 3001
 ```
 
-**Or from source:**
+Or from source:
+
 ```bash
 git clone https://github.com/carlostroy/meshsig.git
 cd meshsig
@@ -94,11 +184,11 @@ npm install && npm run build
 node dist/main.js start
 ```
 
-Open `http://localhost:4888` — live security operations dashboard.
+Open `http://localhost:4888` — live security dashboard.
+
+---
 
 ## CLI
-
-MeshSig works as a standalone command-line tool. No server required for signing and verifying.
 
 ```bash
 # Generate your Ed25519 identity
@@ -142,35 +232,28 @@ meshsig start --port 4888
 
 All commands support `--json` for piping and automation.
 
+---
+
 ## Dashboard
 
-Real-time isometric 3D office where your AI agents live and work. Watch them walk between desks, exchange signed messages, and collaborate — all cryptographically verified.
+Real-time security operations dashboard. Watch agents exchange signed messages and track trust scores.
 
 ```bash
 meshsig start --port 4888
 # Open http://localhost:4888
 ```
 
-**HQ Office** — Isometric 3D workspace with:
-- LEGO-style animated agents seated at their desks
-- Agents walk to each other when delegating tasks
-- Golden message particles with preview text traveling between agents
-- Glow effects on sending/receiving agents
-- Drag to pan, scroll to zoom, fully interactive
-- Open-plan office with Management, Support, Meeting Room, Break Room, Ops Center
-- 3D furniture: desks with laptops, office chairs, sofas, server racks, coffee machine, vending machine, whiteboards
-
-**Other pages:**
 - **Agents** — Cards with DID, trust score, capabilities, status
 - **Messages** — Full message log with signature verification
 - **Audit Report** — Summary stats with JSON export
 - **Verify Signature** — Paste message + signature to verify manually
 
+---
+
 ## Audit & Compliance
 
-Every signed message is logged with cryptographic proof. Export the complete audit trail for compliance.
+Every signed message is logged with cryptographic proof.
 
-**API endpoint:**
 ```bash
 curl http://localhost:4888/audit/export
 ```
@@ -181,33 +264,23 @@ Returns JSON with:
 - All connections with handshake proof
 - All messages with signatures and verification status
 
-**CLI:**
 ```bash
 meshsig audit --json > audit-2026-03.json
 ```
 
-## Public Signature Verifier
-
-Anyone can verify a signature in the browser — no account, no install needed.
-
-Open `http://localhost:4888/verify`, paste a message, signature, and public key or DID. One click verification.
-
-**API:**
-```bash
-curl -X POST http://localhost:4888/verify \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"hello","signature":"base64...","did":"did:msig:..."}'
-# {"valid": true, "verifiedAt": "2026-03-13T..."}
-```
+---
 
 ## Security Features
 
+### Prompt Injection Defense
+
+MeshSig provides a cryptographic boundary between trusted instructions and untrusted content. Instructions that arrive without a valid `did:msig:` signature are treated as data — never as commands. This is enforced at the SDK level before execution, regardless of how the content looks or what it claims.
+
 ### Key Rotation
 
-Rotate an agent's keypair without losing its identity (DID). If a key is compromised, generate a new one and the old key becomes invalid immediately.
+Rotate an agent's keypair without losing its identity (DID).
 
 ```bash
-# CLI
 meshsig rotate-key
 
 # API
@@ -216,40 +289,29 @@ curl -X POST http://localhost:4888/agents/rotate-key \
   -d '{"did":"did:msig:...","currentPrivateKey":"base64..."}'
 ```
 
-All rotations are logged. The DID stays the same — only the signing key changes.
-
 ### Agent Revocation
 
-Permanently revoke a compromised agent. All future messages from or to this agent will be rejected with `403 Forbidden`.
+Permanently revoke a compromised agent. All future messages are rejected with `403 Forbidden`.
 
 ```bash
-# CLI
 meshsig revoke "did:msig:..." --reason "Key leaked"
-
-# API
-curl -X POST http://localhost:4888/agents/revoke \
-  -H 'Content-Type: application/json' \
-  -d '{"did":"did:msig:...","reason":"Compromised key"}'
 ```
 
-Revocation is irreversible by design. Check the revocation list:
+Revocation is irreversible by design.
 
-```bash
-meshsig revoked
-# or: curl http://localhost:4888/revoked
-```
-
-### Rate Limiting
-
-Built-in protection against abuse. 60 requests per minute per IP address. Exceeding the limit returns `429 Too Many Requests` with retry information.
+---
 
 ## Integrations
 
-MeshSig is **framework-agnostic** — it works with any AI agent framework via the HTTP API, CLI, or MCP protocol.
+MeshSig is **framework-agnostic** — works with any agent system via the SDK, HTTP API, CLI, or MCP protocol.
 
-### Any Framework (HTTP API)
+### @meshsig/sdk (any JS/TS framework)
 
-Use the REST API to sign and verify messages from any language or framework:
+```typescript
+import { generateIdentity, sign, verifyWithDid } from '@meshsig/sdk';
+```
+
+### HTTP API (any language)
 
 ```bash
 # Register an agent
@@ -263,73 +325,34 @@ curl -X POST http://localhost:4888/messages/send \
   -d '{"fromDid":"did:msig:...","toDid":"did:msig:...","message":"task","privateKey":"..."}'
 ```
 
-Works with **LangChain**, **CrewAI**, **AutoGen**, **LlamaIndex**, **Semantic Kernel**, **Haystack**, custom agents, and any system that can make HTTP requests.
+### Python
 
-### MCP (Claude, Cursor, Windsurf, Cline)
+```python
+import requests
 
-MeshSig ships as a native MCP server. See the [MCP Server](#mcp-server) section.
+r = requests.post('http://localhost:4888/agents/register',
+    json={'name': 'my-agent', 'capabilities': [{'type': 'analysis'}]})
+agent = r.json()
 
-```bash
-npx meshsig-mcp
+r = requests.post('http://localhost:4888/verify',
+    json={'message': 'hello', 'signature': sig, 'did': agent['record']['did']})
+print(r.json()['valid'])  # True
 ```
 
 ### OpenClaw (Native)
 
-MeshSig includes built-in scripts for OpenClaw agent-to-agent delegation:
-
 ```bash
-# With MeshSig running on the same server as OpenClaw:
 bash scripts/install.sh
 ```
 
-The install script automatically:
-1. Discovers all OpenClaw agents on the machine
-2. Generates Ed25519 identity (`did:msig:...`) for each agent
-3. Creates verified connections via cryptographic handshake
-4. Replaces `invoke.sh` with a signed version (original backed up)
+Discovers all OpenClaw agents, generates `did:msig:` identity for each, and replaces `invoke.sh` with a signed version.
 
 ```
 Before:  Agent A → invoke.sh → Agent B  (no proof)
 After:   Agent A → invoke.sh → [SIGN] → MeshSig → [VERIFY] → Agent B
 ```
 
-### Auto-register agents
-
-```bash
-# When a new agent is provisioned:
-bash scripts/register-agent.sh agent-name-here
-
-# When an agent is removed:
-bash scripts/unregister-agent.sh agent-name-here
-```
-
-### Python / JavaScript SDK
-
-Use MeshSig programmatically:
-
-```javascript
-// JavaScript / TypeScript
-import { generateIdentity, sign, verify } from '@meshsig/sdk';
-
-const agent = await generateIdentity();
-const signature = await sign('hello', agent.privateKey);
-const valid = await verify('hello', signature, agent.publicKey); // true
-```
-
-```python
-# Python — use the HTTP API
-import requests
-
-# Register
-r = requests.post('http://localhost:4888/agents/register',
-    json={'name': 'my-agent', 'capabilities': [{'type': 'analysis'}]})
-agent = r.json()
-
-# Verify
-r = requests.post('http://localhost:4888/verify',
-    json={'message': 'hello', 'signature': sig, 'did': agent['record']['did']})
-print(r.json()['valid'])  # True
-```
+---
 
 ## How It Works
 
@@ -344,8 +367,6 @@ did:msig:6QoiRtfC29pfDoDA4um3TMrBpaCq6kr...
 The DID is derived from the public key. Impossible to forge. Universally verifiable.
 
 ### Signed Messages
-
-Every message carries a digital signature:
 
 ```json
 {
@@ -366,22 +387,17 @@ Trust is earned, not declared:
 
 ### Multi-Server Networking
 
-Connect MeshSig instances across servers:
-
 ```bash
-# Server 1
 meshsig start --port 4888
-
-# Server 2 — connects to Server 1, agents sync automatically
 meshsig start --port 4888 --peer ws://server1:4888
 ```
 
-Remote agents appear on the dashboard with origin labels.
+---
 
 ## API Reference
 
 ```
-GET  /                  Live dashboard (Security Operations Center)
+GET  /                  Live dashboard
 GET  /health            Server status
 GET  /stats             Network statistics
 GET  /snapshot          Full network state
@@ -399,7 +415,7 @@ GET  /revoked           List all revoked agents
 POST /discover          Find agents by capability
 POST /discover/network  Find across connected peers
 
-POST /messages/send     Sign + verify + log a message (blocks revoked agents)
+POST /messages/send     Sign + verify + log a message
 POST /messages/verify   Verify a message signature
 
 POST /handshake         Cryptographic handshake between agents
@@ -412,10 +428,13 @@ POST /peers/connect     Connect to another instance
 WS   ws://host:port     Live event stream
 ```
 
+---
+
 ## Security
 
 | Layer | Implementation |
 |-------|---------------|
+| Prompt Injection | Instructions without valid `did:msig:` signature blocked before execution |
 | Signatures | Ed25519 — same as SSH, Signal, WireGuard, TLS 1.3 |
 | Identity | W3C DID standard (`did:msig:`) |
 | Handshake | Mutual challenge-response with nonce and timestamp |
@@ -423,36 +442,34 @@ WS   ws://host:port     Live event stream
 | Audit | Tamper-evident log with cryptographic hashes |
 | Key Rotation | Generate new keypair, DID preserved, old key invalidated |
 | Revocation | Permanently block compromised agents, public revocation list |
-| Rate Limiting | 60 req/min per IP, protects against DDoS |
+| Rate Limiting | 60 req/min per IP, protects against abuse |
 
 See [docs/SECURITY.md](docs/SECURITY.md) for the full security whitepaper.
+
+---
 
 ## Requirements
 
 - Node.js ≥ 18
 
-No database to configure. No cloud services. No API keys. Install, start, secure.
+No database to configure. No cloud services. No API keys.
 
 ## Docker
-
-Run MeshSig without installing Node.js:
 
 ```bash
 docker build -t meshsig .
 docker run -p 4888:4888 meshsig
 ```
 
-Open `http://localhost:4888` — dashboard running in a container.
+---
 
 ## MCP Server
 
-MeshSig works as a Model Context Protocol (MCP) server — any AI tool can use it directly.
+MeshSig works as a Model Context Protocol (MCP) server.
 
-**9 tools available:** `meshsig_init`, `meshsig_sign`, `meshsig_verify`, `meshsig_identity`, `meshsig_agents`, `meshsig_stats`, `meshsig_audit`, `meshsig_revoke`, `meshsig_revoked`
+**9 tools:** `meshsig_init`, `meshsig_sign`, `meshsig_verify`, `meshsig_identity`, `meshsig_agents`, `meshsig_stats`, `meshsig_audit`, `meshsig_revoke`, `meshsig_revoked`
 
 ### Claude Desktop
-
-Add to `~/.claude/claude_desktop_config.json`:
 
 ```json
 {
@@ -467,8 +484,6 @@ Add to `~/.claude/claude_desktop_config.json`:
 
 ### Cursor / Windsurf / Cline
 
-Add to your MCP config:
-
 ```json
 {
   "meshsig": {
@@ -478,11 +493,9 @@ Add to your MCP config:
 }
 ```
 
-Then ask your AI: *"Sign this message with MeshSig"* or *"Verify this agent's signature"* — it works directly.
-
-### Environment Variables
-
 - `MESHSIG_SERVER` — MeshSig server URL (default: `http://localhost:4888`)
+
+---
 
 ## License
 
