@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Ed25519-Cryptographic_Identity-00d4ff?style=for-the-badge" />
   <img src="https://img.shields.io/badge/W3C-DID_Standard-8b5cf6?style=for-the-badge" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/npm-meshsig-f0b429?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/npm-%40meshsig%2Fsdk-f0b429?style=for-the-badge" />
 </p>
 
 <h1 align="center">MeshSig</h1>
