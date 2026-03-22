@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <a href="https://meshsig.ai">meshsig.ai</a> ·
+  <a href="https://meshsig.dev">meshsig.dev</a> ·
   <a href="#cli">CLI</a> ·
   <a href="#dashboard">Dashboard</a> ·
   <a href="#mcp-server">MCP</a> ·
