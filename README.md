@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <a href="https://meshsig.dev">meshsig.dev</a> ·
+  <a href="https://meshsig.ai">meshsig.ai</a> ·
   <a href="#cli">CLI</a> ·
   <a href="#dashboard">Dashboard</a> ·
   <a href="#mcp-server">MCP</a> ·
@@ -309,7 +309,7 @@ Use MeshSig programmatically:
 
 ```javascript
 // JavaScript / TypeScript
-import { generateIdentity, sign, verify } from 'meshsig';
+import { generateIdentity, sign, verify } from '@meshsig/sdk';
 
 const agent = await generateIdentity();
 const signature = await sign('hello', agent.privateKey);
@@ -492,5 +492,5 @@ MIT
 
 <p align="center">
   <strong>MeshSig</strong> — Cryptographic security layer for AI agents.<br>
-  <a href="https://meshsig.dev">meshsig.dev</a> · <a href="https://github.com/carlostroy/meshsig">GitHub</a>
+  <a href="https://meshsig.ai">meshsig.ai</a> · <a href="https://github.com/carlostroy/meshsig">GitHub</a>
 </p>
