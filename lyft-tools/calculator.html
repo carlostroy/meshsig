@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Lyft Ride Calculator</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --card: #161b22;
+    --muted: #8b949e;
+    --text: #e6edf3;
+    --accent: #ea4c89;
+    --good: #2ea043;
+    --bad: #f85149;
+    --warn: #d29922;
+    --border: #30363d;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 16px; padding-bottom: 80px; }
+  h1 { font-size: 20px; margin: 4px 0 16px; }
+  .verdict {
+    border-radius: 16px; padding: 24px 16px; text-align: center;
+    margin-bottom: 16px; transition: background 0.2s;
+    background: var(--card); border: 1px solid var(--border);
+  }
+  .verdict.go { background: rgba(46, 160, 67, 0.18); border-color: var(--good); }
+  .verdict.skip { background: rgba(248, 81, 73, 0.15); border-color: var(--bad); }
+  .verdict.warn { background: rgba(210, 153, 34, 0.15); border-color: var(--warn); }
+  .verdict .label { font-size: 36px; font-weight: 800; letter-spacing: 1px; }
+  .verdict.go .label { color: var(--good); }
+  .verdict.skip .label { color: var(--bad); }
+  .verdict.warn .label { color: var(--warn); }
+  .verdict .reason { font-size: 14px; color: var(--muted); margin-top: 8px; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field { display: flex; flex-direction: column; margin-bottom: 10px; }
+  .field label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .field input {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; font-size: 18px; outline: none;
+    -webkit-appearance: none; appearance: none;
+  }
+  .field input:focus { border-color: var(--accent); }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+  .stat .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat .v { font-size: 18px; font-weight: 700; margin-top: 2px; }
+  .stat .v.good { color: var(--good); }
+  .stat .v.bad { color: var(--bad); }
+  button.clear {
+    width: 100%; padding: 14px; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 10px; font-size: 14px;
+    cursor: pointer; margin-top: 4px;
+  }
+  button.clear:active { background: var(--card); }
+  details { margin-top: 8px; }
+  summary { color: var(--muted); cursor: pointer; font-size: 13px; padding: 6px 0; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lyft Ride Calculator</h1>
+
+  <div id="verdict" class="verdict">
+    <div class="label">—</div>
+    <div class="reason">Enter ride details below</div>
+  </div>
+
+  <div class="card">
+    <h2>This ride</h2>
+    <div class="row">
+      <div class="field">
+        <label>Pay ($)</label>
+        <input id="pay" type="number" inputmode="decimal" step="0.01" placeholder="0.00" />
+      </div>
+      <div class="field">
+        <label>Total time (min)</label>
+        <input id="time" type="number" inputmode="numeric" step="1" placeholder="0" />
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Pickup dist (mi)</label>
+        <input id="pickup" type="number" inputmode="decimal" step="0.1" placeholder="0.0" />
+      </div>
+      <div class="field">
+        <label>Trip dist (mi)</label>
+        <input id="trip" type="number" inputmode="decimal" step="0.1" placeholder="0.0" />
+      </div>
+    </div>
+    <button class="clear" id="clearBtn">Clear ride</button>
+  </div>
+
+  <div class="card">
+    <h2>Breakdown</h2>
+    <div class="stats">
+      <div class="stat"><div class="k">Net pay</div><div class="v" id="netPay">$0.00</div></div>
+      <div class="stat"><div class="k">$ / hour</div><div class="v" id="perHour">$0.00</div></div>
+      <div class="stat"><div class="k">$ / mile</div><div class="v" id="perMile">$0.00</div></div>
+      <div class="stat"><div class="k">Fuel cost</div><div class="v" id="fuel">$0.00</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Your settings</h2>
+    <div class="row">
+      <div class="field">
+        <label>Car MPG</label>
+        <input id="mpg" type="number" inputmode="decimal" step="0.1" />
+      </div>
+      <div class="field">
+        <label>Gas ($/gal)</label>
+        <input id="gas" type="number" inputmode="decimal" step="0.01" />
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Target $/hr</label>
+        <input id="targetHour" type="number" inputmode="decimal" step="0.5" />
+      </div>
+      <div class="field">
+        <label>Min $/mile</label>
+        <input id="minMile" type="number" inputmode="decimal" step="0.05" />
+      </div>
+    </div>
+    <p class="hint">Settings auto-save on this device.</p>
+  </div>
+</div>
+
+<script>
+  const ids = ['pay','time','pickup','trip','mpg','gas','targetHour','minMile'];
+  const $ = id => document.getElementById(id);
+  const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+  const fmt = n => '$' + n.toFixed(2);
+
+  const defaults = { mpg: 28, gas: 3.50, targetHour: 25, minMile: 1.00 };
+  const SETTINGS_KEYS = ['mpg','gas','targetHour','minMile'];
+  const RIDE_KEYS = ['pay','time','pickup','trip'];
+
+  function loadSettings() {
+    SETTINGS_KEYS.forEach(k => {
+      const saved = localStorage.getItem('lyftcalc.' + k);
+      $(k).value = saved !== null ? saved : defaults[k];
+    });
+  }
+  function saveSetting(k, v) { localStorage.setItem('lyftcalc.' + k, v); }
+
+  function compute() {
+    const pay = num($('pay').value);
+    const timeMin = num($('time').value);
+    const pickup = num($('pickup').value);
+    const trip = num($('trip').value);
+    const mpg = num($('mpg').value) || defaults.mpg;
+    const gas = num($('gas').value) || defaults.gas;
+    const targetHour = num($('targetHour').value) || defaults.targetHour;
+    const minMile = num($('minMile').value) || defaults.minMile;
+
+    const totalMiles = pickup + trip;
+    const fuelCost = mpg > 0 ? (totalMiles / mpg) * gas : 0;
+    const net = pay - fuelCost;
+    const perHour = timeMin > 0 ? (net / timeMin) * 60 : 0;
+    const perMile = trip > 0 ? pay / trip : 0;
+
+    $('netPay').textContent = fmt(net);
+    $('perHour').textContent = fmt(perHour);
+    $('perMile').textContent = fmt(perMile);
+    $('fuel').textContent = fmt(fuelCost);
+
+    $('netPay').className = 'v ' + (net >= 0 ? 'good' : 'bad');
+    $('perHour').className = 'v ' + (perHour >= targetHour ? 'good' : 'bad');
+    $('perMile').className = 'v ' + (perMile >= minMile ? 'good' : 'bad');
+
+    const verdict = $('verdict');
+    const label = verdict.querySelector('.label');
+    const reason = verdict.querySelector('.reason');
+
+    if (pay === 0 && timeMin === 0 && trip === 0) {
+      verdict.className = 'verdict';
+      label.textContent = '—';
+      reason.textContent = 'Enter ride details below';
+      return;
+    }
+
+    const hourOk = perHour >= targetHour;
+    const mileOk = perMile >= minMile;
+    const deadheadRatio = totalMiles > 0 ? pickup / totalMiles : 0;
+
+    if (hourOk && mileOk && deadheadRatio < 0.4) {
+      verdict.className = 'verdict go';
+      label.textContent = 'GO';
+      reason.textContent = `${fmt(perHour)}/hr · ${fmt(perMile)}/mi`;
+    } else if (!hourOk && !mileOk) {
+      verdict.className = 'verdict skip';
+      label.textContent = 'SKIP';
+      const reasons = [];
+      reasons.push(`${fmt(perHour)}/hr below ${fmt(targetHour)}`);
+      reasons.push(`${fmt(perMile)}/mi below ${fmt(minMile)}`);
+      reason.textContent = reasons.join(' · ');
+    } else {
+      verdict.className = 'verdict warn';
+      label.textContent = 'MAYBE';
+      const issues = [];
+      if (!hourOk) issues.push(`${fmt(perHour)}/hr (target ${fmt(targetHour)})`);
+      if (!mileOk) issues.push(`${fmt(perMile)}/mi (min ${fmt(minMile)})`);
+      if (deadheadRatio >= 0.4) issues.push(`${Math.round(deadheadRatio*100)}% deadhead`);
+      reason.textContent = issues.join(' · ');
+    }
+  }
+
+  ids.forEach(id => {
+    $(id).addEventListener('input', () => {
+      if (SETTINGS_KEYS.includes(id)) saveSetting(id, $(id).value);
+      compute();
+    });
+  });
+
+  $('clearBtn').addEventListener('click', () => {
+    RIDE_KEYS.forEach(k => $(k).value = '');
+    compute();
+    $('pay').focus();
+  });
+
+  loadSettings();
+  compute();
+</script>
+</body>
+</html>

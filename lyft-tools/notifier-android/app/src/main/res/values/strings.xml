@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_description">Reads ride-card text when the Lyft Driver app shows a request and plays a sound based on user-defined rules. Does not interact with the app or send any data over the network.</string>
+</resources>

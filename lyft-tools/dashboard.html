@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lyft Trip Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0e1116;
+    --card: #161b22;
+    --muted: #8b949e;
+    --text: #e6edf3;
+    --accent: #ea4c89;
+    --good: #2ea043;
+    --border: #30363d;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 24px; margin: 0 0 8px; }
+  p.lede { color: var(--muted); margin: 0 0 24px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 16px; font-weight: 600; }
+  .drop {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 40px 20px;
+    text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  }
+  .drop.over { border-color: var(--accent); background: rgba(234, 76, 137, 0.08); }
+  .drop p { margin: 0; color: var(--muted); }
+  .drop strong { color: var(--text); display: block; font-size: 18px; margin-bottom: 8px; }
+  input[type=file] { display: none; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .kpi { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .kpi .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi .v { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+  canvas { max-width: 100%; }
+  .hidden { display: none; }
+  .mapping label { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+  .mapping select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; flex: 1; }
+  button.primary {
+    background: var(--accent); color: white; border: none; border-radius: 8px;
+    padding: 10px 16px; font-size: 14px; cursor: pointer; font-weight: 600;
+  }
+  button.ghost {
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 16px; font-size: 14px; cursor: pointer;
+  }
+  .err { color: #f85149; font-size: 13px; margin-top: 8px; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lyft Trip Dashboard</h1>
+  <p class="lede">Drop your trip-history CSV from the Lyft Driver dashboard. Nothing leaves your browser.</p>
+
+  <div id="upload" class="card">
+    <div id="drop" class="drop">
+      <strong>Drop CSV here or tap to choose</strong>
+      <p>Lyft Driver → Earnings → Download trip history</p>
+      <input id="file" type="file" accept=".csv,text/csv" />
+    </div>
+    <div id="error" class="err hidden"></div>
+  </div>
+
+  <div id="mapping" class="card hidden">
+    <h2>Map columns</h2>
+    <p class="hint">Couldn't auto-detect every column. Pick the matching column from your file.</p>
+    <div class="mapping" id="mappingFields"></div>
+    <button class="primary" id="applyMapping">Continue</button>
+  </div>
+
+  <div id="results" class="hidden">
+    <div class="card">
+      <h2>Summary</h2>
+      <div class="kpis" id="kpis"></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>Earnings by hour of day</h2><canvas id="hourChart"></canvas></div>
+      <div class="card"><h2>Earnings by day of week</h2><canvas id="dowChart"></canvas></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>$ per hour by hour of day</h2><canvas id="ratehourChart"></canvas></div>
+      <div class="card"><h2>Trips per hour of day</h2><canvas id="countChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Top 10 best hours (by $/hr)</h2>
+      <table id="bestTable"><thead><tr><th>Day</th><th>Hour</th><th>Trips</th><th>$/hr</th><th>Total</th></tr></thead><tbody></tbody></table>
+    </div>
+    <button class="ghost" id="reset">Load another CSV</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const FIELDS = [
+  { key: 'datetime', label: 'Trip start (date/time)', synonyms: ['requested at','request time','pickup time','accepted at','start time','date','datetime','timestamp','ride start'] },
+  { key: 'earnings', label: 'Total earnings ($)', synonyms: ['total','total earnings','net earnings','earnings','total fare','amount','payout','total pay'] },
+  { key: 'miles', label: 'Distance (miles)', synonyms: ['miles','distance','trip distance','distance (mi)','total miles'] },
+  { key: 'duration', label: 'Duration (minutes)', synonyms: ['duration','time','minutes','trip duration','total time','duration (min)','duration (minutes)'] },
+];
+
+let parsedRows = null;
+let parsedHeaders = null;
+let charts = {};
+
+function parseCSV(text) {
+  const rows = [];
+  let cur = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"' && text[i+1] === '"') { field += '"'; i++; }
+      else if (c === '"') inQ = false;
+      else field += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ',') { cur.push(field); field = ''; }
+      else if (c === '\n') { cur.push(field); rows.push(cur); cur = []; field = ''; }
+      else if (c === '\r') { /* skip */ }
+      else field += c;
+    }
+  }
+  if (field.length || cur.length) { cur.push(field); rows.push(cur); }
+  return rows.filter(r => r.length > 1 || (r.length === 1 && r[0].trim() !== ''));
+}
+
+function autoMap(headers) {
+  const lower = headers.map(h => h.toLowerCase().trim());
+  const map = {};
+  for (const f of FIELDS) {
+    let idx = -1;
+    for (const syn of f.synonyms) {
+      idx = lower.indexOf(syn);
+      if (idx !== -1) break;
+    }
+    if (idx === -1) {
+      idx = lower.findIndex(h => f.synonyms.some(s => h.includes(s)));
+    }
+    map[f.key] = idx;
+  }
+  return map;
+}
+
+function parseMoney(v) {
+  if (v == null) return 0;
+  const cleaned = String(v).replace(/[^0-9.\-]/g, '');
+  const n = parseFloat(cleaned);
+  return isFinite(n) ? n : 0;
+}
+function parseNumber(v) {
+  if (v == null) return 0;
+  const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
+  return isFinite(n) ? n : 0;
+}
+function parseDate(v) {
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function buildRecords(rows, map) {
+  const headers = rows[0];
+  const data = rows.slice(1);
+  const records = [];
+  for (const row of data) {
+    const dt = parseDate(row[map.datetime]);
+    if (!dt) continue;
+    const earnings = parseMoney(row[map.earnings]);
+    const miles = map.miles >= 0 ? parseNumber(row[map.miles]) : 0;
+    let duration = map.duration >= 0 ? parseNumber(row[map.duration]) : 0;
+    if (duration > 60 * 24) duration = duration / 60;
+    records.push({ dt, earnings, miles, duration });
+  }
+  return records;
+}
+
+function renderMapping(headers, autoMapped) {
+  const container = $('mappingFields');
+  container.innerHTML = '';
+  for (const f of FIELDS) {
+    const lab = document.createElement('label');
+    const span = document.createElement('span');
+    span.textContent = f.label + (f.key === 'duration' || f.key === 'miles' ? ' (optional)' : '');
+    span.style.minWidth = '180px';
+    const sel = document.createElement('select');
+    sel.dataset.key = f.key;
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '-1'; noneOpt.textContent = '— none —';
+    sel.appendChild(noneOpt);
+    headers.forEach((h, i) => {
+      const o = document.createElement('option');
+      o.value = String(i); o.textContent = h;
+      if (autoMapped[f.key] === i) o.selected = true;
+      sel.appendChild(o);
+    });
+    lab.appendChild(span); lab.appendChild(sel);
+    container.appendChild(lab);
+  }
+}
+
+function readMapping() {
+  const sels = $('mappingFields').querySelectorAll('select');
+  const m = {};
+  sels.forEach(s => m[s.dataset.key] = parseInt(s.value, 10));
+  return m;
+}
+
+function fmtMoney(n) { return '$' + n.toFixed(2); }
+
+function summarize(records) {
+  const totalEarn = records.reduce((s, r) => s + r.earnings, 0);
+  const totalMiles = records.reduce((s, r) => s + r.miles, 0);
+  const totalMin = records.reduce((s, r) => s + r.duration, 0);
+  const trips = records.length;
+  const perHour = totalMin > 0 ? (totalEarn / totalMin) * 60 : 0;
+  const perMile = totalMiles > 0 ? totalEarn / totalMiles : 0;
+  const perTrip = trips > 0 ? totalEarn / trips : 0;
+  return { totalEarn, totalMiles, totalMin, trips, perHour, perMile, perTrip };
+}
+
+function renderKPIs(s) {
+  const items = [
+    ['Trips', s.trips.toString()],
+    ['Total earned', fmtMoney(s.totalEarn)],
+    ['$ / hour', fmtMoney(s.perHour)],
+    ['$ / mile', fmtMoney(s.perMile)],
+    ['$ / trip', fmtMoney(s.perTrip)],
+    ['Total miles', s.totalMiles.toFixed(0)],
+    ['Hours online', (s.totalMin / 60).toFixed(1)],
+  ];
+  $('kpis').innerHTML = items.map(([k,v]) => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+}
+
+function buildBuckets(records) {
+  const byHour = Array.from({length:24}, () => ({ earn:0, min:0, count:0 }));
+  const byDow = Array.from({length:7}, () => ({ earn:0, min:0, count:0 }));
+  const byDowHour = {};
+  for (const r of records) {
+    const h = r.dt.getHours();
+    const d = r.dt.getDay();
+    byHour[h].earn += r.earnings; byHour[h].min += r.duration; byHour[h].count++;
+    byDow[d].earn += r.earnings; byDow[d].min += r.duration; byDow[d].count++;
+    const k = `${d}-${h}`;
+    if (!byDowHour[k]) byDowHour[k] = { d, h, earn:0, min:0, count:0 };
+    byDowHour[k].earn += r.earnings; byDowHour[k].min += r.duration; byDowHour[k].count++;
+  }
+  return { byHour, byDow, byDowHour };
+}
+
+const DOWS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function destroyCharts() {
+  Object.values(charts).forEach(c => c && c.destroy());
+  charts = {};
+}
+
+function renderCharts(b) {
+  const accent = '#ea4c89';
+  const grid = '#30363d';
+  const text = '#e6edf3';
+  Chart.defaults.color = text;
+  Chart.defaults.borderColor = grid;
+
+  charts.hour = new Chart($('hourChart'), {
+    type: 'bar',
+    data: { labels: b.byHour.map((_,i) => i+'h'), datasets: [{ label: 'Earnings ($)', data: b.byHour.map(x => x.earn), backgroundColor: accent }] },
+    options: { plugins: { legend: { display:false } }, scales: { x:{ grid:{ color:grid } }, y:{ grid:{ color:grid } } } }
+  });
+  charts.dow = new Chart($('dowChart'), {
+    type: 'bar',
+    data: { labels: DOWS, datasets: [{ label: 'Earnings ($)', data: b.byDow.map(x => x.earn), backgroundColor: accent }] },
+    options: { plugins: { legend: { display:false } }, scales: { x:{ grid:{ color:grid } }, y:{ grid:{ color:grid } } } }
+  });
+  charts.rate = new Chart($('ratehourChart'), {
+    type: 'line',
+    data: { labels: b.byHour.map((_,i) => i+'h'), datasets: [{ label: '$/hr', data: b.byHour.map(x => x.min > 0 ? (x.earn / x.min) * 60 : 0), borderColor: accent, backgroundColor: accent, tension: 0.25 }] },
+    options: { plugins: { legend: { display:false } }, scales: { x:{ grid:{ color:grid } }, y:{ grid:{ color:grid } } } }
+  });
+  charts.count = new Chart($('countChart'), {
+    type: 'bar',
+    data: { labels: b.byHour.map((_,i) => i+'h'), datasets: [{ label: 'Trips', data: b.byHour.map(x => x.count), backgroundColor: accent }] },
+    options: { plugins: { legend: { display:false } }, scales: { x:{ grid:{ color:grid } }, y:{ grid:{ color:grid } } } }
+  });
+}
+
+function renderBestTable(byDowHour) {
+  const rows = Object.values(byDowHour)
+    .filter(x => x.min >= 30)
+    .map(x => ({ ...x, rate: (x.earn / x.min) * 60 }))
+    .sort((a,b) => b.rate - a.rate)
+    .slice(0, 10);
+  const tbody = $('bestTable').querySelector('tbody');
+  tbody.innerHTML = rows.map(r => `<tr><td>${DOWS[r.d]}</td><td>${r.h}:00</td><td>${r.count}</td><td>${fmtMoney(r.rate)}</td><td>${fmtMoney(r.earn)}</td></tr>`).join('') || '<tr><td colspan="5" style="color:var(--muted)">Not enough data (need ≥30 min per slot).</td></tr>';
+}
+
+function process(records) {
+  if (records.length === 0) {
+    showError('No valid rows found. Check your column mapping.');
+    return;
+  }
+  destroyCharts();
+  $('upload').classList.add('hidden');
+  $('mapping').classList.add('hidden');
+  $('results').classList.remove('hidden');
+  const s = summarize(records);
+  renderKPIs(s);
+  const b = buildBuckets(records);
+  renderCharts(b);
+  renderBestTable(b.byDowHour);
+}
+
+function showError(msg) {
+  const el = $('error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+function clearError() { $('error').classList.add('hidden'); }
+
+function handleFile(file) {
+  clearError();
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const text = e.target.result;
+      const rows = parseCSV(text);
+      if (rows.length < 2) { showError('CSV looks empty.'); return; }
+      parsedRows = rows;
+      parsedHeaders = rows[0];
+      const auto = autoMap(parsedHeaders);
+      const ok = auto.datetime >= 0 && auto.earnings >= 0;
+      if (ok) {
+        const records = buildRecords(parsedRows, auto);
+        process(records);
+      } else {
+        renderMapping(parsedHeaders, auto);
+        $('mapping').classList.remove('hidden');
+      }
+    } catch (err) {
+      showError('Failed to parse: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+$('file').addEventListener('change', e => handleFile(e.target.files[0]));
+$('drop').addEventListener('click', () => $('file').click());
+['dragenter','dragover'].forEach(ev =>
+  $('drop').addEventListener(ev, e => { e.preventDefault(); $('drop').classList.add('over'); })
+);
+['dragleave','drop'].forEach(ev =>
+  $('drop').addEventListener(ev, e => { e.preventDefault(); $('drop').classList.remove('over'); })
+);
+$('drop').addEventListener('drop', e => {
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+$('applyMapping').addEventListener('click', () => {
+  const m = readMapping();
+  if (m.datetime < 0 || m.earnings < 0) {
+    showError('Date/time and earnings columns are required.');
+    return;
+  }
+  const records = buildRecords(parsedRows, m);
+  process(records);
+});
+
+$('reset').addEventListener('click', () => {
+  destroyCharts();
+  $('results').classList.add('hidden');
+  $('upload').classList.remove('hidden');
+  $('file').value = '';
+  parsedRows = null;
+});
+</script>
+</body>
+</html>
