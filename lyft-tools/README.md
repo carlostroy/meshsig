@@ -1,6 +1,6 @@
 # Lyft Driver Tools
 
-Three small tools to help you decide rides faster and learn from your history.
+Four small tools to help you decide rides faster and learn from your history.
 **None of them automate accepting rides.** Acceptance always stays in your hands.
 
 ## 1. `calculator.html` — Per-ride profitability
@@ -85,3 +85,18 @@ The service exposes the parsed numbers from the on-screen card to the rules
 engine: `pay`, `pickupMin`, `tripMin`, `pickupMi`, `tripMi`. Any field the
 service couldn't parse is `null`, and rules that depend on a `null` field
 are skipped.
+
+## 4. `notifier-ios/` — Same idea, for iPhone
+
+iOS port using **ReplayKit Broadcast Upload Extension** + **Vision framework**
+for OCR. Reads the Lyft Driver ride card from the screen and fires a
+time-sensitive notification with **PEGA / TALVEZ / RECUSA** plus the reason.
+
+Requires a Mac, Xcode 15+, and an iPhone running iOS 16+. **Free Apple ID is
+fine** — no $99/year developer account needed (with the catch that the app
+needs re-signing every 7 days, which AltStore can automate).
+
+Same disclaimers as the Android version: it reads your own screen, never
+talks to Lyft's servers, and acceptance is always yours.
+
+See `notifier-ios/README.md` for full setup steps.

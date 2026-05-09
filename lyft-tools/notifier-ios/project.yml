@@ -1,0 +1,50 @@
+name: LyftAdvisor
+options:
+  bundleIdPrefix: com.lyftadvisor
+  deploymentTarget:
+    iOS: "16.0"
+  developmentLanguage: pt-BR
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+
+targets:
+  LyftAdvisor:
+    type: application
+    platform: iOS
+    sources:
+      - path: LyftAdvisor
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lyftadvisor.app
+        INFOPLIST_FILE: LyftAdvisor/Info.plist
+        CODE_SIGN_ENTITLEMENTS: LyftAdvisor/LyftAdvisor.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+        ENABLE_PREVIEWS: YES
+    dependencies:
+      - target: BroadcastExtension
+
+  BroadcastExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: BroadcastExtension
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lyftadvisor.broadcast
+        INFOPLIST_FILE: BroadcastExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: BroadcastExtension/BroadcastExtension.entitlements
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1"
+    dependencies:
+      - sdk: ReplayKit.framework
+      - sdk: Vision.framework
+      - sdk: UserNotifications.framework
