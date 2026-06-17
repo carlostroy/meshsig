@@ -17,14 +17,14 @@
 
   <!-- Loader -->
   <div class="loader" id="loader">
-    <div class="loader__mark">BORAH</div>
+    <img class="loader__logo" src="assets/logo.png" alt="Borah Negócios Imobiliários">
   </div>
 
   <!-- Navegação -->
   <header class="nav" id="nav">
-    <a href="#inicio" class="nav__brand logo" aria-label="Borah Negócios Imobiliários">
-      <span class="logo__word">BORAH</span>
-      <span class="logo__sub">Negócios Imobiliários</span>
+    <a href="#inicio" class="nav__brand" aria-label="Borah Negócios Imobiliários">
+      <img class="brand-logo brand-logo--light" src="assets/logo.png" alt="Borah Negócios Imobiliários">
+      <img class="brand-logo brand-logo--dark" src="assets/logo-dark.png" alt="" aria-hidden="true">
     </a>
     <nav class="nav__links" id="navLinks">
       <a href="#sobre">Sobre</a>
@@ -42,8 +42,9 @@
   <!-- Hero -->
   <section class="hero" id="inicio">
     <div class="hero__media">
-      <img src="assets/hero.svg"
-           alt="Borah Negócios Imobiliários" />
+      <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1920&q=80"
+           onerror="this.onerror=null;this.src='assets/hero.svg'"
+           alt="Residência de alto padrão — Borah Negócios Imobiliários" />
       <div class="hero__overlay"></div>
     </div>
     <div class="hero__content">
@@ -68,8 +69,9 @@
   <!-- Sobre -->
   <section class="about" id="sobre">
     <div class="about__image reveal">
-      <img src="assets/portrait.svg"
-           alt="Equipe Borah Negócios Imobiliários" />
+      <img src="assets/broker.png"
+           onerror="this.onerror=null;this.src='assets/portrait.svg'"
+           alt="Corretor fundador da Borah Negócios Imobiliários" />
     </div>
     <div class="about__text">
       <p class="section__eyebrow reveal">Quem é a Borah</p>
@@ -133,7 +135,8 @@
     <div class="portfolio__grid">
       <article class="property reveal">
         <div class="property__media">
-          <img src="assets/prop-1.svg" alt="Residência contemporânea">
+          <img src="https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=900&q=80"
+               onerror="this.onerror=null;this.src='assets/prop-1.svg'" alt="Residência contemporânea">
           <span class="property__tag">Venda</span>
         </div>
         <div class="property__body">
@@ -148,7 +151,8 @@
 
       <article class="property reveal">
         <div class="property__media">
-          <img src="assets/prop-2.svg" alt="Cobertura panorâmica">
+          <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=900&q=80"
+               onerror="this.onerror=null;this.src='assets/prop-2.svg'" alt="Cobertura panorâmica">
           <span class="property__tag">Exclusivo</span>
         </div>
         <div class="property__body">
@@ -163,7 +167,8 @@
 
       <article class="property reveal">
         <div class="property__media">
-          <img src="assets/prop-3.svg" alt="Casa de campo de alto padrão">
+          <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=900&q=80"
+               onerror="this.onerror=null;this.src='assets/prop-3.svg'" alt="Casa de campo de alto padrão">
           <span class="property__tag">Lançamento</span>
         </div>
         <div class="property__body">
@@ -266,9 +271,9 @@
   <!-- Rodapé -->
   <footer class="footer">
     <div class="footer__top">
-      <div class="footer__brand logo logo--footer">
-        <span class="logo__word">BORAH</span>
-        <span class="logo__sub">Negócios Imobiliários · CRECI-J 00000</span>
+      <div class="footer__brand">
+        <img class="brand-logo brand-logo--light" src="assets/logo.png" alt="Borah Negócios Imobiliários" style="height:54px">
+        <small class="footer__creci">CRECI-J 00000</small>
       </div>
       <div class="footer__contacts">
         <a href="tel:+5511999999999">+55 11 99999-9999</a>
