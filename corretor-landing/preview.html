@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ricardo Almeida — Corretor de Imóveis de Alto Padrão</title>
-  <meta name="description" content="Ricardo Almeida — assessoria imobiliária de alto padrão. Mais de 15 anos conectando pessoas aos imóveis certos, com discrição, estratégia e atendimento sob medida." />
+  <title>Borah Negócios Imobiliários — Imóveis de Alto Padrão</title>
+  <meta name="description" content="Borah Negócios Imobiliários — assessoria imobiliária de alto padrão. Mais de 15 anos conectando pessoas aos imóveis certos, com discrição, estratégia e atendimento sob medida." />
 
   <!-- Tipografia elegante -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Playfair+Display:wght@500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 
   <style>
 /* =========================================================
@@ -106,10 +106,12 @@ a { color: inherit; text-decoration: none; }
 }
 .loader.is-done { opacity: 0; visibility: hidden; }
 .loader__mark {
-  font-family: var(--font-serif);
+  font-family: "Playfair Display", var(--font-serif);
+  font-weight: 500;
   color: var(--paper);
-  font-size: 2.4rem;
-  letter-spacing: .3em;
+  font-size: 2rem;
+  letter-spacing: .42em;
+  text-indent: .42em;
   opacity: .85;
   animation: pulse 1.6s ease-in-out infinite;
 }
@@ -141,6 +143,28 @@ a { color: inherit; text-decoration: none; }
   font-family: var(--font-serif);
   font-size: 1.25rem; letter-spacing: .04em;
 }
+
+/* ---------- Logo Borah (vetor/texto, recolorível) ---------- */
+.logo { display: flex; flex-direction: column; line-height: 1; gap: .22rem; }
+.logo__word {
+  font-family: "Playfair Display", var(--font-serif);
+  font-weight: 500;
+  font-size: 1.5rem;
+  letter-spacing: .26em;
+  text-indent: .26em;            /* compensa o tracking final */
+  color: currentColor;
+}
+.logo__sub {
+  font-family: var(--font-sans);
+  font-size: .58rem;
+  font-weight: 400;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  opacity: .72;
+  padding-left: .3em;
+}
+.logo--footer .logo__word { font-size: 1.7rem; }
+.logo--footer .logo__sub { font-size: .62rem; }
 .nav__links { display: flex; align-items: center; gap: 2.1rem; }
 .nav__links a {
   font-size: .8rem; letter-spacing: .1em; text-transform: uppercase;
@@ -374,14 +398,14 @@ section { padding: clamp(5rem, 11vw, 9rem) clamp(1.4rem, 5vw, 4rem); }
 
   <!-- Loader -->
   <div class="loader" id="loader">
-    <div class="loader__mark">RA</div>
+    <div class="loader__mark">BORAH</div>
   </div>
 
   <!-- Navegação -->
   <header class="nav" id="nav">
-    <a href="#inicio" class="nav__brand">
-      <span class="nav__monogram">RA</span>
-      <span class="nav__name">Ricardo Almeida</span>
+    <a href="#inicio" class="nav__brand logo" aria-label="Borah Negócios Imobiliários">
+      <span class="logo__word">BORAH</span>
+      <span class="logo__sub">Negócios Imobiliários</span>
     </a>
     <nav class="nav__links" id="navLinks">
       <a href="#sobre">Sobre</a>
@@ -389,7 +413,7 @@ section { padding: clamp(5rem, 11vw, 9rem) clamp(1.4rem, 5vw, 4rem); }
       <a href="#portfolio">Portfólio</a>
       <a href="#servicos">Atuação</a>
       <a href="#depoimentos">Clientes</a>
-      <a href="#contato" class="nav__cta">Falar com Ricardo</a>
+      <a href="#contato" class="nav__cta">Falar com a Borah</a>
     </nav>
     <button class="nav__toggle" id="navToggle" aria-label="Abrir menu">
       <span></span><span></span>
@@ -400,7 +424,7 @@ section { padding: clamp(5rem, 11vw, 9rem) clamp(1.4rem, 5vw, 4rem); }
   <section class="hero" id="inicio">
     <div class="hero__media">
       <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221600%22%20height%3D%221000%22%20viewBox%3D%220%200%201600%201000%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23211e1a%22%2F%3E%3Cstop%20offset%3D%220.5%22%20stop-color%3D%22%232c2823%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23151310%22%2F%3E%0A%20%20%20%20%3C%2FlinearGradient%3E%0A%20%20%20%20%3CradialGradient%20id%3D%22v%22%20cx%3D%220.35%22%20cy%3D%220.4%22%20r%3D%220.9%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%233a352d%22%20stop-opacity%3D%220.6%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23151310%22%20stop-opacity%3D%220%22%2F%3E%0A%20%20%20%20%3C%2FradialGradient%3E%0A%20%20%3C%2Fdefs%3E%0A%20%20%3Crect%20width%3D%221600%22%20height%3D%221000%22%20fill%3D%22url(%23g)%22%2F%3E%0A%20%20%3Crect%20width%3D%221600%22%20height%3D%221000%22%20fill%3D%22url(%23v)%22%2F%3E%0A%20%20%3Cg%20fill%3D%22none%22%20stroke%3D%22%23a98b63%22%20stroke-opacity%3D%220.22%22%20stroke-width%3D%222%22%3E%0A%20%20%20%20%3Crect%20x%3D%22980%22%20y%3D%22430%22%20width%3D%22150%22%20height%3D%22420%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%221130%22%20y%3D%22320%22%20width%3D%22200%22%20height%3D%22530%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%221330%22%20y%3D%22500%22%20width%3D%22150%22%20height%3D%22350%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%22880%22%20y%3D%22560%22%20width%3D%22100%22%20height%3D%22290%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Cg%20fill%3D%22%23a98b63%22%20fill-opacity%3D%220.12%22%3E%0A%20%20%20%20%3Crect%20x%3D%221150%22%20y%3D%22350%22%20width%3D%2230%22%20height%3D%2240%22%2F%3E%3Crect%20x%3D%221200%22%20y%3D%22350%22%20width%3D%2230%22%20height%3D%2240%22%2F%3E%3Crect%20x%3D%221250%22%20y%3D%22350%22%20width%3D%2230%22%20height%3D%2240%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%221150%22%20y%3D%22420%22%20width%3D%2230%22%20height%3D%2240%22%2F%3E%3Crect%20x%3D%221200%22%20y%3D%22420%22%20width%3D%2230%22%20height%3D%2240%22%2F%3E%3Crect%20x%3D%221250%22%20y%3D%22420%22%20width%3D%2230%22%20height%3D%2240%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%221000%22%20y%3D%22470%22%20width%3D%2225%22%20height%3D%2235%22%2F%3E%3Crect%20x%3D%221045%22%20y%3D%22470%22%20width%3D%2225%22%20height%3D%2235%22%2F%3E%3Crect%20x%3D%221090%22%20y%3D%22470%22%20width%3D%2225%22%20height%3D%2235%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E%0A"
-           alt="Ricardo Almeida, corretor de imóveis" />
+           alt="Borah Negócios Imobiliários" />
       <div class="hero__overlay"></div>
     </div>
     <div class="hero__content">
@@ -409,7 +433,7 @@ section { padding: clamp(5rem, 11vw, 9rem) clamp(1.4rem, 5vw, 4rem); }
         O imóvel certo<br>encontra a pessoa certa.
       </h1>
       <p class="hero__lede reveal">
-        Há mais de 15 anos, Ricardo Almeida conduz negociações de imóveis exclusivos
+        Há mais de 15 anos, a Borah conduz negociações de imóveis exclusivos
         com discrição, estratégia e um olhar atento a cada detalhe.
       </p>
       <div class="hero__actions reveal">
@@ -425,31 +449,31 @@ section { padding: clamp(5rem, 11vw, 9rem) clamp(1.4rem, 5vw, 4rem); }
   <!-- Sobre -->
   <section class="about" id="sobre">
     <div class="about__image reveal">
-      <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22900%22%20height%3D%221125%22%20viewBox%3D%220%200%20900%201125%22%3E%0A%20%20%3Cdefs%3E%3ClinearGradient%20id%3D%22p%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23efeae2%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23d8cfc2%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%20%3Crect%20width%3D%22900%22%20height%3D%221125%22%20fill%3D%22url(%23p)%22%2F%3E%0A%20%20%3Cg%20fill%3D%22none%22%20stroke%3D%22%238a6f4c%22%20stroke-opacity%3D%220.45%22%20stroke-width%3D%223%22%3E%0A%20%20%20%20%3Ccircle%20cx%3D%22450%22%20cy%3D%22430%22%20r%3D%22120%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M250%20760%20q200%20-180%20400%200%20v365%20h-400%20z%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Ctext%20x%3D%22450%22%20y%3D%221050%22%20text-anchor%3D%22middle%22%20font-family%3D%22Georgia%2Cserif%22%20font-size%3D%2234%22%20fill%3D%22%238a6f4c%22%20fill-opacity%3D%220.7%22%3ERetrato%20%C2%B7%20Ricardo%20Almeida%3C%2Ftext%3E%0A%20%20%3Ctext%20x%3D%22450%22%20y%3D%221090%22%20text-anchor%3D%22middle%22%20font-family%3D%22Inter%2Csans-serif%22%20font-size%3D%2220%22%20letter-spacing%3D%224%22%20fill%3D%22%238c857b%22%3EFOTO%20PROFISSIONAL%3C%2Ftext%3E%0A%3C%2Fsvg%3E%0A"
-           alt="Retrato de Ricardo Almeida" />
+      <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22900%22%20height%3D%221125%22%20viewBox%3D%220%200%20900%201125%22%3E%0A%20%20%3Cdefs%3E%3ClinearGradient%20id%3D%22p%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%0A%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23efeae2%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23d8cfc2%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%20%3Crect%20width%3D%22900%22%20height%3D%221125%22%20fill%3D%22url(%23p)%22%2F%3E%0A%20%20%3Cg%20fill%3D%22none%22%20stroke%3D%22%238a6f4c%22%20stroke-opacity%3D%220.45%22%20stroke-width%3D%223%22%3E%0A%20%20%20%20%3Ccircle%20cx%3D%22450%22%20cy%3D%22430%22%20r%3D%22120%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M250%20760%20q200%20-180%20400%200%20v365%20h-400%20z%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Ctext%20x%3D%22450%22%20y%3D%221050%22%20text-anchor%3D%22middle%22%20font-family%3D%22Georgia%2Cserif%22%20font-size%3D%2234%22%20fill%3D%22%238a6f4c%22%20fill-opacity%3D%220.7%22%3EEquipe%20%C2%B7%20Borah%3C%2Ftext%3E%0A%20%20%3Ctext%20x%3D%22450%22%20y%3D%221090%22%20text-anchor%3D%22middle%22%20font-family%3D%22Inter%2Csans-serif%22%20font-size%3D%2220%22%20letter-spacing%3D%224%22%20fill%3D%22%238c857b%22%3EFOTO%20PROFISSIONAL%3C%2Ftext%3E%0A%3C%2Fsvg%3E%0A"
+           alt="Equipe Borah Negócios Imobiliários" />
     </div>
     <div class="about__text">
-      <p class="section__eyebrow reveal">Quem conduz</p>
+      <p class="section__eyebrow reveal">Quem é a Borah</p>
       <h2 class="section__title reveal">Mais que vender imóveis,<br>realizar decisões importantes.</h2>
       <p class="reveal">
-        Ricardo Almeida iniciou na corretagem em 2009 e construiu sua reputação
-        atendendo famílias e investidores que buscam imóveis de alto padrão em
-        localizações privilegiadas. Seu trabalho é guiado por uma ideia simples:
+        A Borah nasceu em 2009 e construiu sua reputação atendendo famílias e
+        investidores que buscam imóveis de alto padrão em localizações
+        privilegiadas. Nosso trabalho é guiado por uma ideia simples:
         cada negociação carrega uma decisão de vida — e merece ser tratada assim.
       </p>
       <p class="reveal">
-        Com formação em Gestão de Negócios Imobiliários e especialização em
-        avaliação de imóveis, ele combina leitura de mercado, discrição absoluta
-        e um relacionamento próximo do início ao fim de cada transação.
+        Unindo leitura de mercado, discrição absoluta e um relacionamento
+        próximo, a Borah acompanha cada cliente do início ao fim da transação —
+        com a segurança de quem conhece o mercado por dentro.
       </p>
       <ul class="about__list reveal">
-        <li>CRECI 00000-F · Atuação regularizada</li>
-        <li>Especialista em imóveis residenciais de alto padrão</li>
+        <li>CRECI-J 00000 · Atuação regularizada</li>
+        <li>Especialistas em imóveis residenciais de alto padrão</li>
         <li>Atendimento exclusivo e por agendamento</li>
       </ul>
       <div class="about__sign reveal">
-        <span>Ricardo Almeida</span>
-        <small>Corretor responsável</small>
+        <span>Borah Negócios Imobiliários</span>
+        <small>Assessoria de alto padrão</small>
       </div>
     </div>
   </section>
@@ -615,7 +639,7 @@ section { padding: clamp(5rem, 11vw, 9rem) clamp(1.4rem, 5vw, 4rem); }
           <label for="mensagem">Como posso ajudar?</label>
         </div>
         <button type="submit" class="btn btn--solid btn--full">Enviar mensagem</button>
-        <p class="contact__feedback" id="formFeedback" hidden>Mensagem enviada. Em breve entrarei em contato.</p>
+        <p class="contact__feedback" id="formFeedback" hidden>Mensagem enviada. A Borah entrará em contato em breve.</p>
       </form>
     </div>
   </section>
@@ -623,13 +647,13 @@ section { padding: clamp(5rem, 11vw, 9rem) clamp(1.4rem, 5vw, 4rem); }
   <!-- Rodapé -->
   <footer class="footer">
     <div class="footer__top">
-      <div class="footer__brand">
-        <span class="nav__monogram">RA</span>
-        <p>Ricardo Almeida<br><small>Corretor de Imóveis · CRECI 00000-F</small></p>
+      <div class="footer__brand logo logo--footer">
+        <span class="logo__word">BORAH</span>
+        <span class="logo__sub">Negócios Imobiliários · CRECI-J 00000</span>
       </div>
       <div class="footer__contacts">
         <a href="tel:+5511999999999">+55 11 99999-9999</a>
-        <a href="mailto:contato@ricardoalmeida.com">contato@ricardoalmeida.com</a>
+        <a href="mailto:contato@borahimob.com.br">contato@borahimob.com.br</a>
         <div class="footer__social">
           <a href="#" aria-label="Instagram">Instagram</a>
           <a href="#" aria-label="LinkedIn">LinkedIn</a>
@@ -637,7 +661,7 @@ section { padding: clamp(5rem, 11vw, 9rem) clamp(1.4rem, 5vw, 4rem); }
       </div>
     </div>
     <div class="footer__bottom">
-      <span>© 2026 Ricardo Almeida. Todos os direitos reservados.</span>
+      <span>© 2026 Borah Negócios Imobiliários. Todos os direitos reservados.</span>
       <span>Conteúdo ilustrativo · dados fictícios para demonstração.</span>
     </div>
   </footer>

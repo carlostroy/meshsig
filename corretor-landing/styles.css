@@ -92,10 +92,12 @@ a { color: inherit; text-decoration: none; }
 }
 .loader.is-done { opacity: 0; visibility: hidden; }
 .loader__mark {
-  font-family: var(--font-serif);
+  font-family: "Playfair Display", var(--font-serif);
+  font-weight: 500;
   color: var(--paper);
-  font-size: 2.4rem;
-  letter-spacing: .3em;
+  font-size: 2rem;
+  letter-spacing: .42em;
+  text-indent: .42em;
   opacity: .85;
   animation: pulse 1.6s ease-in-out infinite;
 }
@@ -127,6 +129,28 @@ a { color: inherit; text-decoration: none; }
   font-family: var(--font-serif);
   font-size: 1.25rem; letter-spacing: .04em;
 }
+
+/* ---------- Logo Borah (vetor/texto, recolorível) ---------- */
+.logo { display: flex; flex-direction: column; line-height: 1; gap: .22rem; }
+.logo__word {
+  font-family: "Playfair Display", var(--font-serif);
+  font-weight: 500;
+  font-size: 1.5rem;
+  letter-spacing: .26em;
+  text-indent: .26em;            /* compensa o tracking final */
+  color: currentColor;
+}
+.logo__sub {
+  font-family: var(--font-sans);
+  font-size: .58rem;
+  font-weight: 400;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  opacity: .72;
+  padding-left: .3em;
+}
+.logo--footer .logo__word { font-size: 1.7rem; }
+.logo--footer .logo__sub { font-size: .62rem; }
 .nav__links { display: flex; align-items: center; gap: 2.1rem; }
 .nav__links a {
   font-size: .8rem; letter-spacing: .1em; text-transform: uppercase;

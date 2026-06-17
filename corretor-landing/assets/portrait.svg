@@ -6,6 +6,6 @@
     <circle cx="450" cy="430" r="120"/>
     <path d="M250 760 q200 -180 400 0 v365 h-400 z"/>
   </g>
-  <text x="450" y="1050" text-anchor="middle" font-family="Georgia,serif" font-size="34" fill="#8a6f4c" fill-opacity="0.7">Retrato · Ricardo Almeida</text>
+  <text x="450" y="1050" text-anchor="middle" font-family="Georgia,serif" font-size="34" fill="#8a6f4c" fill-opacity="0.7">Equipe · Borah</text>
   <text x="450" y="1090" text-anchor="middle" font-family="Inter,sans-serif" font-size="20" letter-spacing="4" fill="#8c857b">FOTO PROFISSIONAL</text>
 </svg>
