@@ -2,7 +2,7 @@ name: Deploy Borah Landing
 
 on:
   push:
-    branches: [claude/gallant-bell-yizjmg]
+    branches: [main, claude/gallant-bell-yizjmg]
   workflow_dispatch:
 
 permissions:
