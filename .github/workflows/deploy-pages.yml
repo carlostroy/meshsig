@@ -29,10 +29,18 @@ jobs:
         with:
           enablement: true
 
+      - name: Montar site (MeshSig na raiz + Borah em /borah)
+        run: |
+          mkdir -p _site
+          cp -r docs/. _site/
+          mkdir -p _site/borah
+          cp corretor-landing/index.html corretor-landing/styles.css corretor-landing/script.js _site/borah/
+          cp -r corretor-landing/assets _site/borah/assets
+
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: corretor-landing
+          path: _site
 
       - name: Deploy to GitHub Pages
         id: deployment
