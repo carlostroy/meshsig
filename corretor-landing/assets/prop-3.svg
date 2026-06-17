@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="675" viewBox="0 0 900 675">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#f0ebe3"/><stop offset="1" stop-color="#ddd4c7"/></linearGradient></defs>
+  <rect width="900" height="675" fill="url(#bg)"/>
+  <g fill="none" stroke="#8a6f4c" stroke-opacity="0.5" stroke-width="3">
+   <path d="M260 360 L450 240 L640 360"/>
+   <rect x="300" y="360" width="300" height="160"/>
+   <rect x="420" y="430" width="70" height="90" fill="#8a6f4c" fill-opacity="0.12"/>
+   <rect x="330" y="400" width="55" height="55" fill="#8a6f4c" fill-opacity="0.12"/>
+   <line x1="200" y1="520" x2="700" y2="520"/>
+ </g>
+  <text x="450" y="600" text-anchor="middle" font-family="Inter,sans-serif" font-size="22" letter-spacing="4" fill="#8c857b">REFÚGIO DE ALTO PADRÃO</text>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1125" viewBox="0 0 900 1125">
+  <defs><linearGradient id="p" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#efeae2"/><stop offset="1" stop-color="#d8cfc2"/></linearGradient></defs>
+  <rect width="900" height="1125" fill="url(#p)"/>
+  <g fill="none" stroke="#8a6f4c" stroke-opacity="0.45" stroke-width="3">
+    <circle cx="450" cy="430" r="120"/>
+    <path d="M250 760 q200 -180 400 0 v365 h-400 z"/>
+  </g>
+  <text x="450" y="1050" text-anchor="middle" font-family="Georgia,serif" font-size="34" fill="#8a6f4c" fill-opacity="0.7">Retrato · Ricardo Almeida</text>
+  <text x="450" y="1090" text-anchor="middle" font-family="Inter,sans-serif" font-size="20" letter-spacing="4" fill="#8c857b">FOTO PROFISSIONAL</text>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="675" viewBox="0 0 900 675">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#f0ebe3"/><stop offset="1" stop-color="#ddd4c7"/></linearGradient></defs>
+  <rect width="900" height="675" fill="url(#bg)"/>
+  <g fill="none" stroke="#8a6f4c" stroke-opacity="0.5" stroke-width="3">
+   <rect x="300" y="200" width="300" height="280"/>
+   <line x1="300" y1="270" x2="600" y2="270"/><line x1="300" y1="340" x2="600" y2="340"/><line x1="300" y1="410" x2="600" y2="410"/>
+   <line x1="450" y1="200" x2="450" y2="480"/>
+   <rect x="280" y="480" width="340" height="20" fill="#8a6f4c" fill-opacity="0.12"/>
+ </g>
+  <text x="450" y="600" text-anchor="middle" font-family="Inter,sans-serif" font-size="22" letter-spacing="4" fill="#8c857b">COBERTURA PANORÂMICA</text>
+</svg>
