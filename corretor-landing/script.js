@@ -88,4 +88,67 @@ document.addEventListener('DOMContentLoaded', () => {
       form.querySelector('button').textContent = 'Enviar mensagem';
     }, 4000);
   });
+
+  /* ---- Carrossel da história (Quem é a Borah) ---- */
+  const carousel = document.getElementById('carousel');
+  if (carousel) {
+    const track = document.getElementById('cTrack');
+    const slides = Array.from(track.children);
+    const prev = document.getElementById('cPrev');
+    const next = document.getElementById('cNext');
+    const dotsWrap = document.getElementById('cDots');
+    const curEl = document.getElementById('cCur');
+    const total = slides.length;
+    let index = 0;
+    let timer = null;
+
+    // dots
+    slides.forEach((_, i) => {
+      const b = document.createElement('button');
+      b.setAttribute('aria-label', 'Ir para o slide ' + (i + 1));
+      b.addEventListener('click', () => { go(i); restart(); });
+      dotsWrap.appendChild(b);
+    });
+    const dots = Array.from(dotsWrap.children);
+
+    function go(i) {
+      index = (i + total) % total;
+      track.style.transform = `translateX(${-index * 100}%)`;
+      dots.forEach((d, k) => d.classList.toggle('is-active', k === index));
+      curEl.textContent = index + 1;
+    }
+    const nextSlide = () => go(index + 1);
+    const prevSlide = () => go(index - 1);
+
+    next.addEventListener('click', () => { nextSlide(); restart(); });
+    prev.addEventListener('click', () => { prevSlide(); restart(); });
+
+    // teclado
+    carousel.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight') { nextSlide(); restart(); }
+      if (e.key === 'ArrowLeft') { prevSlide(); restart(); }
+    });
+    carousel.setAttribute('tabindex', '0');
+
+    // swipe / arrasto
+    let startX = null;
+    const vp = document.getElementById('cViewport');
+    vp.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+    vp.addEventListener('touchend', e => {
+      if (startX === null) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) > 40) { dx < 0 ? nextSlide() : prevSlide(); restart(); }
+      startX = null;
+    });
+
+    // autoplay suave com pausa na interação
+    function start() { if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) timer = setInterval(nextSlide, 6000); }
+    function stop() { clearInterval(timer); }
+    function restart() { stop(); start(); }
+    carousel.addEventListener('mouseenter', stop);
+    carousel.addEventListener('mouseleave', start);
+
+    go(0);
+    start();
+  }
 });

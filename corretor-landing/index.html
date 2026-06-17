@@ -66,36 +66,41 @@
     </a>
   </section>
 
-  <!-- Sobre -->
-  <section class="about" id="sobre">
-    <div class="about__image reveal">
-      <img src="assets/broker.png"
-           onerror="this.onerror=null;this.src='assets/portrait.svg'"
-           alt="Corretor fundador da Borah Negócios Imobiliários" />
+  <!-- Quem é a Borah — A história de Saulo Henrique -->
+  <section class="story" id="sobre">
+    <div class="story__head reveal">
+      <p class="section__eyebrow">Quem é a Borah</p>
+      <h2 class="section__title">A história de Saulo Henrique<br>por trás da Borah.</h2>
+      <p class="story__lede">
+        Sem te esconder nada: a trajetória — com altos, baixos e recomeços — de
+        quem construiu a Borah do zero. Deslize e conheça o caminho até aqui.
+      </p>
     </div>
-    <div class="about__text">
-      <p class="section__eyebrow reveal">Quem é a Borah</p>
-      <h2 class="section__title reveal">Mais que vender imóveis,<br>realizar decisões importantes.</h2>
-      <p class="reveal">
-        A Borah nasceu em 2009 e construiu sua reputação atendendo famílias e
-        investidores que buscam imóveis de alto padrão em localizações
-        privilegiadas. Nosso trabalho é guiado por uma ideia simples:
-        cada negociação carrega uma decisão de vida — e merece ser tratada assim.
-      </p>
-      <p class="reveal">
-        Unindo leitura de mercado, discrição absoluta e um relacionamento
-        próximo, a Borah acompanha cada cliente do início ao fim da transação —
-        com a segurança de quem conhece o mercado por dentro.
-      </p>
-      <ul class="about__list reveal">
-        <li>CRECI-J 00000 · Atuação regularizada</li>
-        <li>Especialistas em imóveis residenciais de alto padrão</li>
-        <li>Atendimento exclusivo e por agendamento</li>
-      </ul>
-      <div class="about__sign reveal">
-        <span>Borah Negócios Imobiliários</span>
-        <small>Assessoria de alto padrão</small>
+
+    <div class="carousel reveal" id="carousel">
+      <button class="carousel__nav carousel__nav--prev" id="cPrev" aria-label="Slide anterior">&#8249;</button>
+      <div class="carousel__viewport" id="cViewport">
+        <div class="carousel__track" id="cTrack">
+          <figure class="slide"><img src="assets/carousel-1.jpg" alt="A mente da Borah — a minha história sem te esconder nada"></figure>
+          <figure class="slide"><img src="assets/carousel-2.jpg" alt="Em janeiro de 2011, comecei como estagiário em uma pequena imobiliária de São Luís"></figure>
+          <figure class="slide"><img src="assets/carousel-3.jpg" alt="Pra mim, ser corretor nunca foi um bico"></figure>
+          <figure class="slide"><img src="assets/carousel-4.jpg" alt="Antes do mercado imobiliário, empreendi em outras áreas e quebrei em todas"></figure>
+          <figure class="slide"><img src="assets/carousel-5.jpg" alt="Nada foi linear: imobiliárias, autônomo, abri e encerrei sociedade"></figure>
+          <figure class="slide"><img src="assets/carousel-6.jpg" alt="Em 2017 iniciei minha primeira sociedade, com escritório próprio"></figure>
+          <figure class="slide"><img src="assets/carousel-7.jpg" alt="A virada de mentalidade: quanto mais conheço o mercado, mais me apaixono"></figure>
+          <figure class="slide"><img src="assets/carousel-8.jpg" alt="Sempre foi minha única fonte de renda, proporcionando o melhor para minha família"></figure>
+        </div>
       </div>
+      <button class="carousel__nav carousel__nav--next" id="cNext" aria-label="Próximo slide">&#8250;</button>
+      <div class="carousel__footer">
+        <div class="carousel__dots" id="cDots"></div>
+        <div class="carousel__counter"><span id="cCur">1</span> <i>/</i> <span id="cTot">8</span></div>
+      </div>
+    </div>
+
+    <div class="story__sign reveal">
+      <span>Saulo Henrique</span>
+      <small>Fundador · Borah Negócios Imobiliários</small>
     </div>
   </section>
 
